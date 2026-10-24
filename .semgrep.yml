@@ -1,0 +1,26 @@
+rules:
+  - id: cyberq-no-raw-sql-format
+    patterns:
+      - pattern-either:
+          - pattern: $SESSION.execute(text(f"..."))
+          - pattern: $SESSION.execute(text("..." % ...))
+          - pattern: $SESSION.execute(text("...".format(...)))
+    message: "Avoid raw string formatting inside text(). Use parameterized queries with bindparams."
+    languages: [python]
+    severity: ERROR
+
+  - id: cyberq-no-insecure-eval
+    patterns:
+      - pattern-either:
+          - pattern: eval(...)
+          - pattern: exec(...)
+    message: "Dynamic code execution via eval/exec is forbidden in bank systems."
+    languages: [python]
+    severity: ERROR
+
+  - id: cyberq-no-hardcoded-signing-keys
+    patterns:
+      - pattern: AUDIT_SIGNING_SEED = "..."
+    message: "Do not hardcode signing seeds in production source code."
+    languages: [python]
+    severity: WARNING

@@ -1,0 +1,18 @@
+id: certin-directions-2022
+regulator: CERT-In
+instrument: CERT-In Directions (28 April 2022)
+clause_ref: Directions under sub-section (6) of section 70B of the IT Act, 2000, Para 5
+applies_to:
+  - all_entities
+  - commercial_bank
+trigger_event: noticed
+deadline_hours: 6
+effective_from: "2022-06-27"
+channel: email
+channel_notes: Statutory reporting to incident@cert-in.org.in
+filing_fields: []
+source_url: https://www.cert-in.org.in/Directions2022.jsp
+source_checked_on: null
+verified_by: null
+status: draft
+notes: "Statutory 6-hour reporting window from noticed or notified time. Source URL returned 404 text on live fetch; unverified draft."

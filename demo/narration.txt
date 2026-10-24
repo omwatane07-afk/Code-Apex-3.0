@@ -1,0 +1,72 @@
+# CYBERQ Executive Pitch & Demonstration Narration Script
+
+Audience: Reserve Bank of India (RBI) Senior Supervisory Team / IT Examination Cell
+Total Presentation Duration: 06:09 (369.5s)
+Tone: Authoritative, respectful, regulatory-compliant, banking-grade.
+
+---
+
+[00:00 - 00:23] Scene 1: Admin cannot read investigative narratives or approve filings.
+Duration: 23.6s | Word Count: 45 words | Presentation Pacing: 114.3 wpm
+RBI Pitch Narration:
+"Respected Reserve Bank of India Supervisory Committee. During major cyber incidents, commercial banks face severe operational and regulatory exposure. In CYBERQ, we enforce bank-grade separation of duties. Notice that system administrators are strictly blocked from reading investigative narratives or approving regulatory filings, preserving investigative integrity."
+
+[00:23 - 01:22] Scene 2: Simultaneous dual triggers bind CERT-In and RBI clocks at identical timestamps.
+Duration: 58.6s | Word Count: 108 words | Presentation Pacing: 110.5 wpm
+RBI Pitch Narration:
+"Consider a live commercial banking crisis: at two o'clock in the morning, our core border switch handling RTGS interbank payment traffic experiences route flapping and packet drops. In traditional banks, triage takes hours before anyone notifies the regulator. In CYBERQ, the incident is logged immediately under bank standard operating procedure. Watch closely as the SOC analyst asserts the statutory trigger. Under RBI Cyber Security circulars and CERT-In directions, both statutory clocks, CERT-In six hours for notice, and RBI DAKSH six hours for detection, bind simultaneously with an immutable, identical cryptographic timestamp. Neither clock can be backdated or suppressed. Regulatory accountability begins the exact second the anomaly is detected."
+
+[01:22 - 01:45] Scene 3: Active statutory countdowns with hoverable IST and UTC deadlines.
+Duration: 23.0s | Word Count: 49 words | Presentation Pacing: 128.0 wpm
+RBI Pitch Narration:
+"Once triggered, CYBERQ's statutory clock strip displays real-time countdown dials visible across the enterprise. Notice the synchronized six-hour deadlines for CERT-In and RBI DAKSH, with instant local Indian Standard Time and UTC hover calibration. Obligations not yet triggered, like DPDP, are honestly marked as pending trigger, preventing false alarms."
+
+[01:45 - 02:30] Scene 4: PII Guard flags real Aadhaar numbers while ignoring technical hashes.
+Duration: 45.6s | Word Count: 81 words | Presentation Pacing: 106.6 wpm
+RBI Pitch Narration:
+"A critical compliance risk in bank incident filing is accidental leakage of customer personal data into regulatory portals. CYBERQ features an intelligent air-gapped PII Guard. Technical strings like IP addresses, UUIDs, and SHA-256 hashes are recognized as operational telemetry and safely passed without false alarms. But when an analyst pastes a valid twelve-digit Aadhaar number, the Verhoeff mathematical algorithm immediately intercepts it with a soft warning banner. Analysts cannot bypass this without an explicit, audited override recorded in the permanent ledger."
+
+[02:30 - 02:55] Scene 5: Precautionary principle: answering 'No' keeps the statutory clock running.
+Duration: 24.4s | Word Count: 42 words | Presentation Pacing: 103.4 wpm
+RBI Pitch Narration:
+"Under RBI precautionary principles, a frontline triage analyst who answers 'No' to personal data or reportability cannot unilaterally halt a statutory countdown. Notice here: even after answering 'No', statutory countdown clocks continue running. Only a designated senior checker can confirm an exemption."
+
+[02:55 - 03:18] Scene 6: Dual-control maker-checker: makers cannot approve their own exemption requests.
+Duration: 23.0s | Word Count: 43 words | Presentation Pacing: 112.3 wpm
+RBI Pitch Narration:
+"This brings us to dual-control maker-checker governance. Under RBI IT Governance Directions 2023, the maker who logs an exemption request cannot approve it. A compliance checker must inspect the decision ledger, review technical rationale, and provide formal dual-authorization before any clock is stopped."
+
+[03:18 - 03:41] Scene 7: 3D spatial runway tracks deadlines; falls back to 2D on mobile.
+Duration: 22.9s | Word Count: 42 words | Presentation Pacing: 109.9 wpm
+RBI Pitch Narration:
+"To provide incident commanders spatial clarity under stress, CYBERQ provides an air-gapped 3D Statutory Runway built on Three.js. Deadlines are visualized as physical distance with collision-free billboards. On mobile devices or low-spec crisis laptops, the runway automatically unmounts into high-contrast 2D cards."
+
+[03:41 - 04:04] Scene 8: Wallboard displays incident clocks with zero confidential narrative leakage.
+Duration: 23.0s | Word Count: 41 words | Presentation Pacing: 107.0 wpm
+RBI Pitch Narration:
+"For trading floors, SOC video walls, and executive dispatch centers, CYBERQ provides the ambient wallboard. By architectural guarantee, the wallboard displays countdown horizons and severity metrics, while leaking zero customer account details, confidential narratives, or operator identities to open room cameras."
+
+[04:04 - 04:31] Scene 9: Cryptographic SHA-256 hash chains detect offline log tampering instantly.
+Duration: 27.4s | Word Count: 46 words | Presentation Pacing: 100.8 wpm
+RBI Pitch Narration:
+"For RBI inspection teams and IS auditors, CYBERQ replaces editable databases with an immutable SHA-256 cryptographic hash chain with Ed25519 signatures. Every trigger, edit, and approval links to the prior event. When an offline inspector verifies the export, any unauthorized modification triggers an immediate integrity violation."
+
+[04:31 - 04:54] Scene 10: Self-hosted air-gapped security headers with WCAG AA Day/Night themes.
+Duration: 23.1s | Word Count: 41 words | Presentation Pacing: 106.6 wpm
+RBI Pitch Narration:
+"Banking software must operate in zero-trust, air-gapped environments. CYBERQ bundles self-hosted IBM Plex typography with zero runtime CDN calls. Strict Content Security Policy headers protect the session, and both Day Ledger and Night Desk themes strictly pass WCAG AA contrast standards."
+
+[04:54 - 05:18] Scene 11: Fail-closed design: NTP drift over 1 second triggers manual fallback.
+Duration: 24.0s | Word Count: 41 words | Presentation Pacing: 102.6 wpm
+RBI Pitch Narration:
+"What happens if server time drifts? Under statutory guidelines, timestamps must be legally defensible. If Network Time Protocol drift exceeds one second, CYBERQ immediately fails closed, returns HTTP 503, and activates the documented manual filing runbook per bank standard operating procedure."
+
+[05:18 - 05:46] Scene 12: All 9 quality gates and 19 browser E2E tests pass.
+Duration: 28.0s | Word Count: 44 words | Presentation Pacing: 94.4 wpm
+RBI Pitch Narration:
+"Every deployment of CYBERQ is backed by rigorous automated verification. As an RBI examiner would expect, our CI/CD pipeline enforces nine automated quality gates, including strict typing, AST security scans, secret leak checks, and nineteen browser end-to-end tests, ensuring production readiness before bank deployment."
+
+[05:46 - 06:09] Scene 13: Honest roadmap: Filing packets in M3, Board pack in M4.
+Duration: 23.0s | Word Count: 39 words | Presentation Pacing: 101.7 wpm
+RBI Pitch Narration:
+"Finally, CYBERQ upholds complete transparency. Future capabilities, including automated PDF board packs and formal DAKSH XML filing packets, are marked honestly as roadmap. We show you only verified, working code. CYBERQ transforms cyber crisis management into defensible, board-ready governance."

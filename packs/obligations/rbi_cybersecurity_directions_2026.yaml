@@ -1,0 +1,17 @@
+id: rbi-cybersecurity-directions-2026
+regulator: RBI
+instrument: "RBI Cybersecurity, Technology: Risk, Resilience and Assurance Framework Directions, 2026"
+clause_ref: "RBI/DoS/2026-27/410, Paragraph 182 (Reporting on DAKSH platform)"
+applies_to:
+  - commercial_bank
+trigger_event: detected
+deadline_hours: 6
+effective_from: "2026-07-31"
+channel: portal
+channel_notes: Reporting on DAKSH supervisory portal
+filing_fields: []
+source_url: https://rbi.org.in/scripts/NotificationUser.aspx?Id=13643&Mode=0
+source_checked_on: null
+verified_by: null
+status: draft
+notes: "agent-read, unverified: '182. The bank shall report cyber incidents within six hours of detection on DAKSH platform (Reserve Bank’s Advanced Supervisory Monitoring System - https://daksh.rbi.org.in). The bank shall also pro-actively notify CERT-In regarding cyber incidents.'"

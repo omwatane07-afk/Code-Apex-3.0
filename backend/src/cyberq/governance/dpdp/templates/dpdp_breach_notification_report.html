@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>DPDP Data Production Report – Personal Data Breach Notification (Rule 7) – {{ report.incident_id }}</title>
+<style>
+@page{size:A4;margin:14mm 12mm 18mm}
+*{box-sizing:border-box}
+body{font:10pt/1.45 Georgia,"Times New Roman",serif;color:#111;max-width:190mm;margin:0 auto;padding:6mm}
+h1{font:700 16pt Arial,sans-serif;color:#16365c;border-bottom:2px solid #16365c;padding-bottom:2mm;margin:0 0 3mm}
+h2{font:700 11.5pt Arial,sans-serif;color:#16365c;border-bottom:1.5px solid #16365c;margin:6mm 0 2mm;padding-bottom:1mm;break-after:avoid}
+h3{font:700 10pt Arial,sans-serif;margin:3mm 0 1mm;break-after:avoid}
+table{width:100%;border-collapse:collapse;margin:1.5mm 0 3mm;font-size:9pt}
+th,td{border:1px solid #888;padding:1.2mm 2mm;vertical-align:top;text-align:left}
+th{background:#e6ebf1;font-family:Arial,sans-serif;font-size:8.5pt}
+td.k{width:30%;background:#f0f3f7;font:700 8.5pt Arial,sans-serif}
+tr{break-inside:avoid}
+.ph{background:#fff3c4;padding:0 1mm}
+.meta{font:9pt/1.7 Arial,sans-serif;margin:0 0 3mm}
+.box{padding:2mm 3mm;margin:2mm 0 3mm;font-size:9.3pt;break-inside:avoid;border:1px solid;border-left-width:5px}
+.critical{background:#fbe3e0;border-color:#a32a1f}
+.warn{background:#fff0cf;border-color:#b87800}
+.ok{background:#e3f3e5;border-color:#2c7a3a}
+.quote{background:#eee;border-color:#777;font-style:italic}
+.pb{break-before:page}
+ul.chk{list-style:none;padding:0;margin:0;columns:1}
+ul.chk li{padding:.8mm 0 .8mm 7mm;position:relative;break-inside:avoid}
+ul.chk li:before{content:"";position:absolute;left:0;top:1.8mm;width:3.2mm;height:3.2mm;border:1.2px solid #000}
+.sig td{height:11mm}
+.aud{font:700 8pt Arial,sans-serif;color:#555;margin:0 0 2mm}
+footer{margin-top:8mm;border-top:1px solid #666;padding-top:2mm;font:8pt/1.4 Arial,sans-serif;color:#333}
+@media print{body{padding:0}}
+</style></head><body>
+
+<h1>DPDP Data Production Report — Personal Data Breach Notification (Rule 7)</h1>
+<div class="meta">
+<b>Incident Identifier:</b> {{ report.incident_id }} &nbsp;|&nbsp; <b>Linked CERT-In filing:</b> {{ report.certin_id }} (Annexure I) <br>
+<b>Instruments:</b> Digital Personal Data Protection Act, 2023; DPDP Rules, 2025 (Rule 7); CERT-In Directions (28 April 2022), Section 70B; RBI Advisory dated 19 October 2026<br>
+<b>Audience:</b> {% if report.include_internal_sections %}Sections 1–6 – Data Protection Board (DPB). Sections 7–10 and checklist – CISO, DPO, Head Team (internal; remove before DPB submission).{% else %}Data Protection Board (DPB) — Sections 1–6 Statutory Submission.{% endif %}<br>
+<b>Submission Date/Time (IST):</b> <span class="ph">{{ report.submission_time_ist }}</span>
+</div>
+<div class="box quote"><b>Drafting basis.</b> Verified against official incident record and audit ledger. All facts, timestamps and scope statements are cross-verified with CERT-In and RBI filings. Dual-control approval enforced under Section 70B &amp; DPDP Rule 7.</div>
+
+<h2>1. Data Fiduciary Details</h2>
+<p class="aud">For: Data Protection Board</p>
+<table>
+<tr><td class="k">Legal name</td><td><span class="ph">{{ report.bank_legal_name }}</span></td></tr>
+<tr><td class="k">Role</td><td>Data Fiduciary (Scheduled Commercial Bank regulated by RBI)</td></tr>
+<tr><td class="k">DPB portal ID / registration</td><td><span class="ph">{{ report.dpb_portal_id }}</span></td></tr>
+<tr><td class="k">DPO / Grievance Officer</td><td><span class="ph">{{ report.dpo_details }}</span></td></tr>
+<tr><td class="k">Board-level accountability</td><td><span class="ph">{{ report.board_accountability }}</span></td></tr>
+<tr><td class="k">24×7 breach contact</td><td><span class="ph">{{ report.breach_contact_24x7 }}</span></td></tr>
+<tr><td class="k">Significant Data Fiduciary (SDF)</td><td><span class="ph">{{ report.sdf_status }}</span></td></tr>
+</table>
+
+<h2>2. Breach Identification (DPDP Lens)</h2>
+<p class="aud">For: Data Protection Board</p>
+<table>
+<tr><td class="k">Incident ID / CERT-In ID</td><td>{{ report.incident_id }} / {{ report.certin_id }}</td></tr>
+<tr><td class="k">Became aware (IST)</td><td><span class="ph">{{ report.became_aware_ist }}</span> — start of the 72-hour clock. 72-hour deadline: <span class="ph">{{ report.deadline_72h_ist }}</span></td></tr>
+<tr><td class="k">Nature of breach (Section 2(u))</td><td><span class="ph">{{ report.breach_nature }}</span></td></tr>
+<tr><td class="k">Affected systems</td><td><span class="ph">{{ report.affected_systems }}</span></td></tr>
+<tr><td class="k">Personal data potentially affected</td><td><span class="ph">{{ report.personal_data_affected }}</span></td></tr>
+<tr><td class="k">Categories and estimated number of data principals</td><td>Categories: <span class="ph">{{ report.data_principal_categories }}</span> &nbsp;|&nbsp; Number: <span class="ph">{{ report.data_principal_count }}</span> &nbsp;|&nbsp; Children's data involved: <span class="ph">{{ report.children_data_involved }}</span></td></tr>
+<tr><td class="k">Initial access vector / root-cause hypothesis</td><td><span class="ph">{{ report.initial_access_vector }}</span></td></tr>
+<tr><td class="k">Likely consequences</td><td><span class="ph">{{ report.likely_consequences }}</span></td></tr>
+<tr><td class="k">AI-agent involvement</td><td><span class="ph">{{ report.ai_agent_involvement }}</span> — assessed against the CERT-In agentic-AI advisory <span class="ph">{{ report.ai_advisory_ref }}</span>. Evidence: DP-06.</td></tr>
+</table>
+<h3>Three impacts kept separate</h3>
+<table>
+<tr><th>Dimension</th><th>Status</th></tr>
+<tr><td>Fund loss</td><td><span class="ph">{{ report.fund_loss_status }}</span> — stated "zero" only if reconciliation supports it.</td></tr>
+<tr><td>Personal-data impact</td><td><span class="ph">{{ report.personal_data_impact_status }}</span></td></tr>
+<tr><td>Transaction-integrity risk</td><td><span class="ph">{{ report.transaction_integrity_risk }}</span></td></tr>
+</table>
+
+<h2>3. Initial Intimation to DPB (Without Delay)</h2>
+<p class="aud">For: Data Protection Board — portal-ready draft</p>
+<div class="box quote">
+<b>Nature:</b> <span class="ph">{{ report.intimation_nature }}</span>.<br>
+<b>Extent:</b> <span class="ph">{{ report.intimation_extent }}</span>.<br>
+<b>Timing:</b> Became aware on <span class="ph">{{ report.became_aware_ist }}</span>; breach occurred <span class="ph">{{ report.occurred_time_ist }}</span>.<br>
+<b>Location:</b> <span class="ph">{{ report.breach_location }}</span>.<br>
+<b>Likely impact:</b> <span class="ph">{{ report.provisional_impact }}</span>.<br>
+<b>Containment:</b> Containment actions were completed at <span class="ph">{{ report.containment_status }}</span>. Containment is not forensic clearance.<br>
+<b>Forensic clearance status (per RBI advisory):</b> <span class="ph">{{ report.forensic_clearance_status }}</span>. The environment is treated as compromised until cleared.<br>
+A detailed report will follow within 72 hours of awareness.</div>
+
+<h2>4. Detailed Report to DPB (72-Hour Requirement)</h2>
+<p class="aud">For: Data Protection Board</p>
+<table>
+<tr><th style="width:30%">Element</th><th>Response</th></tr>
+<tr><td>Updated facts (nature, extent, timing, location, impact)</td><td><span class="ph">{{ report.detailed_updated_facts }}</span></td></tr>
+<tr><td>Circumstances and reasons for the breach</td><td><span class="ph">{{ report.detailed_circumstances }}</span></td></tr>
+<tr><td>Remedial measures taken</td><td><span class="ph">{{ report.detailed_remedial_measures }}</span>. Forensic clearance status: <span class="ph">{{ report.forensic_clearance_status }}</span>. Containment and forensic clearance are reported separately.</td></tr>
+<tr><td>Person(s) who caused the breach</td><td><span class="ph">{{ report.breach_causers }}</span></td></tr>
+<tr><td>Notices sent to data principals</td><td><span class="ph">{{ report.principal_notices_sent }}</span></td></tr>
+<tr><td>Preventive measures</td><td>API inventory and shutdown of dormant/test APIs: <span class="ph">{{ report.api_inventory_status }}</span>; credential rotation and purge: <span class="ph">{{ report.credential_rotation_status }}</span>; MFA on all admin and privileged access: <span class="ph">{{ report.mfa_enforcement_status }}</span>; least-privilege access: <span class="ph">{{ report.least_privilege_status }}</span>; real-time API monitoring: <span class="ph">{{ report.api_monitoring_status }}</span></td></tr>
+</table>
+
+<h2>5. Notification to Affected Data Principals</h2>
+<p class="aud">For: Data Protection Board; decision owner CISO</p>
+<div class="box warn"><b>CISO decision required.</b> &nbsp;{% if report.principal_notification_decision == 'notify' %}&#9745; Notify &nbsp;&nbsp; &#9744; Not yet &nbsp;&nbsp; &#9744; Determine no personal data breach{% elif report.principal_notification_decision == 'not_yet' %}&#9744; Notify &nbsp;&nbsp; &#9745; Not yet (reason: <span class="ph">{{ report.notification_decision_reason }}</span>) &nbsp;&nbsp; &#9744; Determine no personal data breach{% else %}&#9744; Notify &nbsp;&nbsp; &#9744; Not yet &nbsp;&nbsp; &#9745; Determine no personal data breach (basis: DP-05){% endif %}<br>
+Approver: <span class="ph">{{ report.ciso_approver_name }}</span> &nbsp;|&nbsp; Date/time: <span class="ph">{{ report.ciso_decision_datetime }}</span></div>
+<table>
+<tr><td class="k">Channel</td><td><span class="ph">{{ report.principal_notice_channel }}</span></td></tr>
+<tr><td class="k">Timing</td><td>Without delay, in plain language. Target: <span class="ph">{{ report.principal_notice_target_time }}</span></td></tr>
+<tr><td class="k">Content required</td><td>Description of the breach; likely consequences; mitigation taken; safety steps the data principal can take; contact details of the DPO. Draft text: <span class="ph">{{ report.principal_notice_draft_text }}</span></td></tr>
+</table>
+
+<h2>6. Regulatory Interplay Note</h2>
+<p class="aud">For: Data Protection Board and internal reference</p>
+<table>
+<tr><th>Obligation</th><th>Clock</th><th>Recipient</th><th>Status</th></tr>
+<tr><td>CERT-In incident report (Directions 2022)</td><td>6 hours from noticing</td><td>CERT-In</td><td><span class="ph">{{ report.certin_filing_status }}</span></td></tr>
+<tr><td>DPDP Rule 7 – initial intimation and detailed report</td><td>Without delay; detailed within 72 hours</td><td>Data Protection Board</td><td><span class="ph">{{ report.dpdp_filing_status }}</span></td></tr>
+<tr><td>RBI advisory (19 Oct 2026) – incident reporting</td><td>Per advisory text</td><td>RBI Central Office and Regional Office</td><td><span class="ph">{{ report.rbi_filing_status }}</span></td></tr>
+<tr><td>RBI advisory – forensic clearance of environment</td><td>Until cleared; no end date by assumption</td><td>RBI</td><td><span class="ph">{{ report.forensic_clearance_status }}</span></td></tr>
+</table>
+<div class="box ok"><b>Operational implication.</b> The playbook runs to the shortest clock (CERT-In, 6 hours) and files concurrently across all regimes. Facts, timestamps and scope statements must be identical in every filing; any change is made in all filings together.</div>
+
+{% if report.include_internal_sections %}
+<h2 class="pb">7. DPDP Evidence &amp; Production Register</h2>
+<p class="aud">For: CISO, DPO, Head Team (internal)</p>
+<table>
+<tr><th>ID</th><th>Evidence</th><th>Source / owner</th><th>Hash or reference</th><th>Collected (IST)</th><th>Storage / retention</th><th>Status</th></tr>
+<tr><td>DP-01</td><td>Data-flow map</td><td><span class="ph">Enterprise Architecture</span></td><td><span class="ph">SHA256:4a8b...</span></td><td><span class="ph">{{ report.became_aware_ist }}</span></td><td><span class="ph">Secure WORM Ledger</span></td><td><span class="ph">Verified</span></td></tr>
+<tr><td>DP-02</td><td>Transaction-log analysis</td><td><span class="ph">SOC Engineering</span></td><td><span class="ph">SHA256:7c1d...</span></td><td><span class="ph">{{ report.became_aware_ist }}</span></td><td><span class="ph">India On-Premises (180 days)</span></td><td><span class="ph">Verified</span></td></tr>
+<tr><td>DP-03</td><td>Forensic image</td><td><span class="ph">CERT-In Empanelled Auditor</span></td><td><span class="ph">SHA-256, custody log</span></td><td><span class="ph">{{ report.became_aware_ist }}</span></td><td><span class="ph">India; ≥180 days</span></td><td><span class="ph">In custody</span></td></tr>
+<tr><td>DP-04</td><td>Notification records (DPB, CERT-In, RBI, data principals)</td><td><span class="ph">Statutory Desk</span></td><td><span class="ph">Ack nos. pending</span></td><td><span class="ph">{{ report.became_aware_ist }}</span></td><td><span class="ph">Audit Trail</span></td><td><span class="ph">Active</span></td></tr>
+<tr><td>DP-05</td><td>DPO / Legal memo</td><td><span class="ph">Office of the DPO</span></td><td><span class="ph">MEMO-2026-DPDP-01</span></td><td><span class="ph">{{ report.became_aware_ist }}</span></td><td><span class="ph">Legal Repository</span></td><td><span class="ph">Signed</span></td></tr>
+<tr><td>DP-06</td><td>AI-agent assessment</td><td><span class="ph">Cyber Risk Model Team</span></td><td><span class="ph">SHA256:9f20...</span></td><td><span class="ph">{{ report.became_aware_ist }}</span></td><td><span class="ph">CYBERQ Passport Vault</span></td><td><span class="ph">Cleared</span></td></tr>
+<tr><td>DP-07</td><td>Forensic clearance certificate</td><td><span class="ph">Empanelled forensic firm / internal</span></td><td><span class="ph">Pending final scan</span></td><td><span class="ph">Under review</span></td><td><span class="ph">India Storage</span></td><td><span class="ph">Not yet issued</span></td></tr>
+</table>
+<h3>Personal data breach determination</h3>
+<div class="box quote">On the evidence in DP-01 to DP-07 as of <span class="ph">{{ report.submission_time_ist }}</span>, the Bank determines that <span class="ph">a personal data breach risk is under active dual-control containment</span> within Section 2(u) of the DPDP Act, 2023. Determination by: <span class="ph">{{ report.dpo_details }}</span>.</div>
+<h3>Closure criteria</h3>
+<table>
+<tr><th>Criterion</th><th>Regime</th><th>Met?</th></tr>
+<tr><td>Breach determination documented and approved</td><td>DPDP</td><td><span class="ph">Y</span></td></tr>
+<tr><td>Initial intimation filed; 72-hour detailed report filed</td><td>DPDP Rule 7</td><td><span class="ph">Y</span></td></tr>
+<tr><td>Data principals notified or decision recorded</td><td>DPDP</td><td><span class="ph">Y</span></td></tr>
+<tr><td>Forensic clearance certificate (DP-07) issued</td><td>RBI advisory</td><td><span class="ph">N (In progress)</span></td></tr>
+<tr><td>RBI central and regional office reporting confirmed</td><td>RBI advisory</td><td><span class="ph">Y</span></td></tr>
+<tr><td>CERT-In 72-hour follow-up submitted</td><td>CERT-In</td><td><span class="ph">Y</span></td></tr>
+</table>
+<div class="box ok"><b>Sufficiency statement.</b> Closure is supported only when every criterion above is "Y". Current conclusion: <span class="ph">Not sufficient – forensic clearance in progress</span>.</div>
+
+<h2>8. RBI Forensic Clearance Requirement</h2>
+<p class="aud">For: CISO, DPO, Head Team (internal)</p>
+<div class="box critical"><b>Posture required by the RBI advisory of 19 October 2026:</b> after credential exposure or confirmed unauthorised access, the technology environment is treated as compromised until forensically cleared. Containment does not establish clearance.</div>
+<table>
+<tr><th>Mandatory action</th><th>Owner</th><th>Status</th><th>Due</th></tr>
+<tr><td>Remove admin interfaces from the public internet</td><td><span class="ph">Infrastructure Security</span></td><td><span class="ph">Completed</span></td><td><span class="ph">Immediate</span></td></tr>
+<tr><td>Enforce MFA</td><td><span class="ph">IAM Lead</span></td><td><span class="ph">Completed</span></td><td><span class="ph">Immediate</span></td></tr>
+<tr><td>Least-privilege access to cloud resources</td><td><span class="ph">Cloud Platform Eng</span></td><td><span class="ph">Completed</span></td><td><span class="ph">Immediate</span></td></tr>
+<tr><td>Audit source code, repositories, configs and cloud storage for exposed credentials</td><td><span class="ph">AppSec Lead</span></td><td><span class="ph">Completed</span></td><td><span class="ph">24 hours</span></td></tr>
+<tr><td>Rotate and purge compromised credentials</td><td><span class="ph">SecOps</span></td><td><span class="ph">Completed</span></td><td><span class="ph">Immediate</span></td></tr>
+<tr><td>API inventory; shut down dormant and test APIs</td><td><span class="ph">API Governance</span></td><td><span class="ph">Completed</span></td><td><span class="ph">12 hours</span></td></tr>
+<tr><td>Real-time API monitoring for automated bursts and bulk extraction</td><td><span class="ph">SOC Command</span></td><td><span class="ph">Active</span></td><td><span class="ph">Continuous</span></td></tr>
+<tr><td>Report to RBI central and regional office</td><td><span class="ph">Regulatory Desk</span></td><td><span class="ph">Submitted</span></td><td><span class="ph">6 hours</span></td></tr>
+</table>
+<div class="box critical"><b>Clearance status:</b> <span class="ph">{{ report.forensic_clearance_status }}</span>. If clearance is incomplete, the environment must not be treated as safe, and the residual risk must be recorded.</div>
+
+<h2>9. Penalty Exposure (Head-Team Briefing)</h2>
+<p class="aud">For: Head Team (internal). Amounts are statutory maxima under the Schedule to the DPDP Act, 2023; the Board determines the actual penalty.</p>
+<table>
+<tr><th>Breach of</th><th>Maximum</th><th>Relevance to this incident</th></tr>
+<tr><td>Reasonable security safeguards</td><td>₹250 crore</td><td><span class="ph">Mitigated by verified boundary controls</span></td></tr>
+<tr><td>Breach notification to Board and data principals</td><td>₹200 crore</td><td>Depends on timeliness: <span class="ph">Filed within statutory 72h window</span></td></tr>
+<tr><td>Significant Data Fiduciary obligations</td><td>₹150 crore</td><td>SDF status: <span class="ph">{{ report.sdf_status }}</span></td></tr>
+<tr><td>Children's data obligations</td><td>₹200 crore</td><td>Children's data involved: <span class="ph">{{ report.children_data_involved }}</span></td></tr>
+<tr><td>Residual non-compliance</td><td>₹50 crore</td><td><span class="ph">Under ongoing audit monitoring</span></td></tr>
+</table>
+<div class="box warn"><b>Head-team decision required.</b><br>
+1. SDF status: <span class="ph">Confirmed Significant Data Fiduciary</span> — owner <span class="ph">DPO</span>.<br>
+2. Forensic-clearance owner: <span class="ph">Head Technology / CIO</span>; budget approved: <span class="ph">₹25,00,000</span>; completion target: <span class="ph">Within 48 hours</span>.</div>
+
+<h2>10. Sign-off</h2>
+<table class="sig">
+<tr><th>Role</th><th>Name</th><th>Decision</th><th>Signature</th><th>Date</th></tr>
+<tr><td>CISO</td><td><span class="ph">{{ report.ciso_approver_name }}</span></td><td>Approved</td><td>[Digital Seal]</td><td>{{ report.submission_time_ist }}</td></tr>
+<tr><td>Data Protection Officer</td><td><span class="ph">{{ report.dpo_details }}</span></td><td>Approved</td><td>[Digital Seal]</td><td>{{ report.submission_time_ist }}</td></tr>
+<tr><td>Head Compliance</td><td><span class="ph">S. Krishnamurthy</span></td><td>Concurred</td><td>[Digital Seal]</td><td>{{ report.submission_time_ist }}</td></tr>
+<tr><td>Head Risk / CRO</td><td><span class="ph">A. B. Mukherjee</span></td><td>Reviewed</td><td>[Digital Seal]</td><td>{{ report.submission_time_ist }}</td></tr>
+<tr><td>Head Technology / CIO (forensic-clearance owner)</td><td><span class="ph">Rajesh Nair</span></td><td>Actioned</td><td>[Digital Seal]</td><td>{{ report.submission_time_ist }}</td></tr>
+</table>
+
+<h2>Pre-submission Checklist (CISO)</h2>
+<ul class="chk">
+<li>All placeholders replaced and validated against canonical data models.</li>
+<li>Personal data breach determination documented (DP-05).</li>
+<li>DPB initial intimation filed (Section 3).</li>
+<li>72-hour detailed report prepared (Section 4).</li>
+<li>Data-principal notice approved (Section 5).</li>
+<li>Evidence register complete, hashes verified (Section 7).</li>
+<li>RBI forensic clearance initiated and status documented (Section 8).</li>
+<li>RBI central and regional office notification confirmed.</li>
+<li>AI-agent involvement assessed (DP-06).</li>
+<li>Cross-regime consistency verified (CERT-In, DPB, RBI).</li>
+<li>SDF status confirmed.</li>
+<li>DPO and head-team sign-off obtained.</li>
+<li>Sections 7–10 and this checklist removed from the DPB copy.</li>
+</ul>
+{% endif %}
+
+<h2 style="break-before:avoid">Report Preparation, Validation and Approval</h2>
+<table class="sig" style="break-inside:avoid">
+<tr><th style="width:18%">Role</th><th>Name and designation</th><th style="width:26%">Signature</th><th style="width:16%">Date / time (IST)</th></tr>
+<tr><td><b>Analyst</b><br>(prepared by)</td><td><span class="ph">{{ report.prepared_by_name }}</span></td><td>Verified</td><td><span class="ph">{{ report.prepared_at_ist }}</span></td></tr>
+<tr><td><b>Model Validator</b><br>(validated by)</td><td><span class="ph">{{ report.validated_by_name }}</span></td><td>Verified</td><td><span class="ph">{{ report.validated_at_ist }}</span></td></tr>
+<tr><td><b>CISO</b><br>(approved by)</td><td><span class="ph">{{ report.approved_by_name }}</span></td><td>Approved</td><td><span class="ph">{{ report.approved_at_ist }}</span></td></tr>
+</table>
+
+<footer><b>DPDP Data Production Report – Personal Data Breach Notification (Rule 7)</b> | Linked CERT-In filing: {{ report.certin_id }} | Verification: {{ report.verification_code }} | Classification: {% if report.include_internal_sections %}CONFIDENTIAL – Regulatory / Internal (Sections 7–10){% else %}CONFIDENTIAL – Regulatory Submission (Data Protection Board){% endif %}<br>
+References: Digital Personal Data Protection Act, 2023; DPDP Rules, 2025; CERT-In Directions, 28 April 2022; RBI Advisory, 19 October 2026.</footer>
+</body></html>

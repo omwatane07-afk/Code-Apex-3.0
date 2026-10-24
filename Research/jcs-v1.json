@@ -1,0 +1,192 @@
+{
+  "invalid": [
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "312e30",
+      "name": "float_decimal"
+    },
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "316532",
+      "name": "float_exponent"
+    },
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "2d302e30",
+      "name": "float_negative_zero"
+    },
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "7b2261223a312e357d",
+      "name": "float_in_object"
+    },
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "4e614e",
+      "name": "nan"
+    },
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "496e66696e697479",
+      "name": "infinity"
+    },
+    {
+      "code": "CQ-CANON-FLOAT",
+      "input_hex": "2d496e66696e697479",
+      "name": "negative_infinity"
+    },
+    {
+      "code": "CQ-CANON-UNSAFE-INT",
+      "input_hex": "39303037313939323534373430393932",
+      "name": "int_above_safe"
+    },
+    {
+      "code": "CQ-CANON-UNSAFE-INT",
+      "input_hex": "2d39303037313939323534373430393932",
+      "name": "int_below_safe"
+    },
+    {
+      "code": "CQ-CANON-DUPLICATE-KEY",
+      "input_hex": "7b2261223a312c2261223a327d",
+      "name": "duplicate_names"
+    },
+    {
+      "code": "CQ-CANON-DUPLICATE-KEY",
+      "input_hex": "7b2261223a312c225c7530303631223a327d",
+      "name": "duplicate_names_after_unescape"
+    },
+    {
+      "code": "CQ-CANON-STRING",
+      "input_hex": "225c756438303022",
+      "name": "lone_high_surrogate"
+    },
+    {
+      "code": "CQ-CANON-STRING",
+      "input_hex": "7b225c7564633030223a317d",
+      "name": "lone_low_surrogate_in_name"
+    },
+    {
+      "code": "CQ-CANON-STRING",
+      "input_hex": "225c75646530305c756438336422",
+      "name": "reversed_surrogate_pair"
+    },
+    {
+      "code": "CQ-CANON-STRING",
+      "input_hex": "7b2261223a22c328227d",
+      "name": "invalid_utf8"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "efbbbf7b7d",
+      "name": "utf8_bom"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "7b2261223a312c7d",
+      "name": "trailing_comma"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "7b7d2078",
+      "name": "trailing_garbage"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "7b2761273a317d",
+      "name": "single_quotes"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "",
+      "name": "empty_input"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "3031",
+      "name": "leading_zero"
+    },
+    {
+      "code": "CQ-CANON-MALFORMED",
+      "input_hex": "2261016222",
+      "name": "raw_control_char_in_string"
+    },
+    {
+      "code": "CQ-CANON-DEPTH",
+      "input_hex": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+      "name": "depth_65"
+    }
+  ],
+  "spec": "CQ-JCS-VECTORS-v1",
+  "valid": [
+    {
+      "expected_hex": "7b7d",
+      "input_hex": "7b7d",
+      "name": "empty_object"
+    },
+    {
+      "expected_hex": "5b5d",
+      "input_hex": "5b5d",
+      "name": "empty_array"
+    },
+    {
+      "expected_hex": "5b747275652c66616c73652c6e756c6c5d",
+      "input_hex": "5b747275652c66616c73652c6e756c6c5d",
+      "name": "scalars"
+    },
+    {
+      "expected_hex": "7b2261223a6e756c6c2c2262223a5b312c325d7d",
+      "input_hex": "207b20226222203a205b2031202c2032205d202c20226122203a206e756c6c207d20",
+      "name": "whitespace_stripped_and_sorted"
+    },
+    {
+      "expected_hex": "7b2261223a5b7b2278223a322c2279223a317d5d2c227a223a7b2261223a7b7d2c2262223a5b5d7d7d",
+      "input_hex": "7b227a223a7b2262223a5b5d2c2261223a7b7d7d2c2261223a5b7b2279223a312c2278223a327d5d7d",
+      "name": "nested_sorting"
+    },
+    {
+      "expected_hex": "5b302c2d312c393030373139393235343734303939312c2d393030373139393235343734303939315d",
+      "input_hex": "5b302c2d312c393030373139393235343734303939312c2d393030373139393235343734303939315d",
+      "name": "integers_at_safe_bounds"
+    },
+    {
+      "expected_hex": "5b305d",
+      "input_hex": "5b2d305d",
+      "name": "negative_zero_integer_normalises"
+    },
+    {
+      "expected_hex": "225c75303030305c75303031665c625c745c6e5c665c725c225c5c2f7fe280a822",
+      "input_hex": "225c75303030305c75303031665c625c745c6e5c665c725c225c5c5c2f5c75303037665c753230323822",
+      "name": "string_escapes"
+    },
+    {
+      "expected_hex": "22c3b622",
+      "input_hex": "225c753030663622",
+      "name": "escaped_non_ascii_becomes_literal"
+    },
+    {
+      "expected_hex": "22f09f988022",
+      "input_hex": "22f09f988022",
+      "name": "astral_char_literal"
+    },
+    {
+      "expected_hex": "22f09f988022",
+      "input_hex": "225c75643833645c756465303022",
+      "name": "astral_char_from_surrogate_pair_escape"
+    },
+    {
+      "expected_hex": "7b225c72223a2243617272696167652052657475726e222c2231223a224f6e65222c22c280223a22436f6e74726f6c222c22c3b6223a224c6174696e20536d616c6c204c6574746572204f205769746820446961657265736973222c22e282ac223a224575726f205369676e222c22f09f9880223a22456d6f6a693a204772696e6e696e672046616365222c22efacb3223a22486562726577204c65747465722044616c6574205769746820446167657368227d",
+      "input_hex": "7b225c7532306163223a224575726f205369676e222c225c72223a2243617272696167652052657475726e222c225c7566623333223a22486562726577204c65747465722044616c6574205769746820446167657368222c2231223a224f6e65222c225c75643833645c7564653030223a22456d6f6a693a204772696e6e696e672046616365222c225c7530303830223a22436f6e74726f6c222c225c7530306636223a224c6174696e20536d616c6c204c6574746572204f205769746820446961657265736973227d",
+      "name": "rfc8785_3_2_3_member_sorting"
+    },
+    {
+      "expected_hex": "7b22f09f9880223a322c22efacb3223a317d",
+      "input_hex": "7b225c7566623333223a312c225c75643833645c7564653030223a327d",
+      "name": "utf16_vs_codepoint_order"
+    },
+    {
+      "expected_hex": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+      "input_hex": "5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d",
+      "name": "depth_64_ok"
+    }
+  ]
+}

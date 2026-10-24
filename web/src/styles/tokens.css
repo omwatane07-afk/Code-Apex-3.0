@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CYBERQ Tactical Cyber Operations Design System Tokens */
+/* Strict Palette: Obsidian Void Black (#050508), Panel (#0A0D14), Neon Green (#00FF66), Neon Blue (#00E5FF), Critical Red (#FF1E42) */
+
+:root {
+  /* Day Ledger (Light Mode) */
+  --bg-app: #F4F5F3;
+  --bg-surface: #FFFFFF;
+  --bg-panel-translucent: rgba(255, 255, 255, 0.92);
+  --bg-hover: #EAECEF;
+  --border-rule: #D3D8DB;
+  --text-main: #15202B;
+  --text-muted: #4F5D69;
+  --primary: #1B4F9C;
+  --primary-hover: #153E7A;
+  --primary-fg: #FFFFFF;
+
+  /* Status & Tactical Accents */
+  --status-ok: #1F7A4D;
+  --status-due-soon: #A65F00;
+  --status-critical: #B3261E;
+  --status-breached: #7A0F0F;
+  --status-info: #0088FF;
+
+  /* Neon Tactical Palette Extensions */
+  --neon-green: #00FF66;
+  --neon-green-glow: rgba(0, 255, 102, 0.35);
+  --neon-green-muted: rgba(0, 255, 102, 0.10);
+
+  --neon-blue: #00E5FF;
+  --neon-blue-glow: rgba(0, 229, 255, 0.35);
+  --neon-blue-muted: rgba(0, 229, 255, 0.10);
+
+  --critical-red: #FF1E42;
+  --critical-red-glow: rgba(255, 30, 66, 0.45);
+  --critical-red-muted: rgba(255, 30, 66, 0.12);
+
+  /* Geometry & Shape */
+  --radius-control: 4px;
+  --radius-segment: 2px;
+  --radius-row: 0px;
+
+  /* Typography */
+  --font-ui: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+[data-theme="dark"],
+.dark {
+  /* Cyber Operations Command Center (Dark Mode) */
+  --bg-app: #050508;
+  --bg-surface: #0A0D14;
+  --bg-panel-translucent: rgba(10, 13, 20, 0.88);
+  --bg-hover: #111722;
+  --border-rule: #1A2332;
+  --text-main: #F0F6FC;
+  --text-muted: #8B9BB4;
+  --primary: #00FF66;
+  --primary-hover: #00CC52;
+  --primary-fg: #050508;
+
+  /* Tactical Status Colors */
+  --status-ok: #00FF66;
+  --status-due-soon: #FFB74D;
+  --status-critical: #FF1E42;
+  --status-breached: #7A0F0F;
+  --status-info: #00E5FF;
+
+  /* Neon Tactical Palette Extensions */
+  --neon-green: #00FF66;
+  --neon-green-glow: rgba(0, 255, 102, 0.35);
+  --neon-green-muted: rgba(0, 255, 102, 0.10);
+
+  --neon-blue: #00E5FF;
+  --neon-blue-glow: rgba(0, 229, 255, 0.35);
+  --neon-blue-muted: rgba(0, 229, 255, 0.10);
+
+  --critical-red: #FF1E42;
+  --critical-red-glow: rgba(255, 30, 66, 0.45);
+  --critical-red-muted: rgba(255, 30, 66, 0.12);
+}
+
+/* Tabular Numerals for Monospace Clocks, Currency & Hashes */
+.font-tabular,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tactical HUD Scanline & Grid Backgrounds */
+.cyber-grid {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, rgba(26, 35, 50, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(26, 35, 50, 0.35) 1px, transparent 1px);
+}
+
+.cyber-panel-hud {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-rule);
+  position: relative;
+}
+
+.cyber-panel-hud::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  opacity: 0.6;
+}

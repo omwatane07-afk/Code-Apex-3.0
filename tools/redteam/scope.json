@@ -1,0 +1,20 @@
+{
+  "allow_list": [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "testserver",
+    "0.0.0.0",
+    "cyberq-api",
+    "cyberq-worker",
+    "cyberq-db",
+    "cyberq-keycloak"
+  ],
+  "allowed_schemes": [
+    "http",
+    "https",
+    "sqlite",
+    "postgresql"
+  ],
+  "environment": "local_disposable_sandbox"
+}

@@ -1,0 +1,10 @@
+ 
+[24-10-2026 12:48:48.49] CYBERQ Launcher starting 
+[*] Found system Python 3.13.9 
+[*] Found Node.js v24.13.1 
+[*] Found npm 11.8.0 
+[1/3] Database init starting 
+[OK] Database initialized 
+[2/3] Starting backend 
+[3/3] Starting frontend 
+[24-10-2026 12:48:53.24] CYBERQ Launcher completed successfully 

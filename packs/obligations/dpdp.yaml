@@ -1,0 +1,19 @@
+id: dpdp-rules-2025
+regulator: DPDP
+instrument: Digital Personal Data Protection Rules, 2025
+clause_ref: Rule 7 (Personal Data Breach Intimation to Board and Data Principals)
+applies_to:
+  - data_fiduciary
+  - commercial_bank
+trigger_event: aware
+deadline_hours: 72
+effective_from: "2025-01-01"
+enforcement_date: "2025-01-01"
+channel: portal
+channel_notes: Intimation to Data Protection Board
+filing_fields: []
+source_url: https://www.meity.gov.in/content/digital-personal-data-protection
+source_checked_on: null
+verified_by: null
+status: draft
+notes: "Statutory Rule 7: Detailed breach report to Data Protection Board within 72 hours of becoming aware; enforcement from 13 May 2027. Initial intimation without delay is untimed. Source URL returned Next.js client shell on live fetch; unverified draft."

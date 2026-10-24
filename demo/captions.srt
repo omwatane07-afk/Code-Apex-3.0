@@ -1,0 +1,51 @@
+1
+00:00:00,000 --> 00:00:23,630
+Admin cannot read investigative narratives or approve filings.
+
+2
+00:00:23,630 --> 00:01:22,260
+Simultaneous dual triggers bind CERT-In and RBI clocks at identical timestamps.
+
+3
+00:01:22,260 --> 00:01:45,230
+Active statutory countdowns with hoverable IST and UTC deadlines.
+
+4
+00:01:45,230 --> 00:02:30,800
+PII Guard flags real Aadhaar numbers while ignoring technical hashes.
+
+5
+00:02:30,800 --> 00:02:55,170
+Precautionary principle: answering 'No' keeps the statutory clock running.
+
+6
+00:02:55,170 --> 00:03:18,140
+Dual-control maker-checker: makers cannot approve their own exemption requests.
+
+7
+00:03:18,140 --> 00:03:41,070
+3D spatial runway tracks deadlines; falls back to 2D on mobile.
+
+8
+00:03:41,070 --> 00:04:04,070
+Wallboard displays incident clocks with zero confidential narrative leakage.
+
+9
+00:04:04,070 --> 00:04:31,440
+Cryptographic SHA-256 hash chains detect offline log tampering instantly.
+
+10
+00:04:31,440 --> 00:04:54,510
+Self-hosted air-gapped security headers with WCAG AA Day/Night themes.
+
+11
+00:04:54,510 --> 00:05:18,480
+Fail-closed design: NTP drift over 1 second triggers manual fallback.
+
+12
+00:05:18,480 --> 00:05:46,450
+All 9 quality gates and 19 browser E2E tests pass.
+
+13
+00:05:46,450 --> 00:06:09,450
+Honest roadmap: Filing packets in M3, Board pack in M4.
