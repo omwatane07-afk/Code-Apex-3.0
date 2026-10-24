@@ -20,6 +20,10 @@ import {
 import type { IncidentItem, TriggerItem } from "../features/incidents/types"
 import type { WallboardIncident } from "../features/wallboard/WallboardView"
 import { evaluateCalibrationStatus } from "../lib/istClock"
+import { TelemetryProvider, useTelemetry } from "../lib/telemetryContext"
+import { LiveAnomalyNotificationModal } from "../features/admin/LiveAnomalyNotificationModal"
+import { LiveTelemetryDrawer } from "../features/telemetry/LiveTelemetryDrawer"
+import type { LiveAnomalyAlert } from "../lib/liveTelemetryEngine"
 
 const ClockStrip = lazy(() =>
   import("../features/incidents/ClockStrip").then((m) => ({ default: m.ClockStrip }))
@@ -110,7 +114,22 @@ export function getPathForView(view: AppView): string {
   }
 }
 
-export default function App() {
+function AppContent() {
+  const {
+    toolsState,
+    activeAnomalies,
+    soundEnabled,
+    toggleSound,
+    dismissAnomaly,
+    dismissAllAnomalies,
+    acknowledgeAnomaly,
+    openDrawer,
+    triggerAnomaly,
+  } = useTelemetry()
+
+  const totalEps = toolsState.reduce((acc, t) => acc + t.metrics.events_per_minute, 0)
+  const hasAnomaly = activeAnomalies.length > 0
+
   const [theme, setTheme] = useState<"light" | "dark">("dark")
   const isProd = import.meta.env.PROD || import.meta.env.MODE === "production"
   const isDemoParam = typeof window !== "undefined" && (
@@ -146,6 +165,16 @@ export default function App() {
   const [isAssertModalOpen, setIsAssertModalOpen] = useState(false)
   const [isHandoverOpen, setIsHandoverOpen] = useState(false)
   const [isPaletteOpen, setIsPaletteOpen] = useState(false)
+  const [newIncidentInitialData, setNewIncidentInitialData] = useState<{
+    title?: string
+    summary?: string
+    severity?: "low" | "medium" | "high" | "critical"
+  } | null>(null)
+
+  const openNewIncident = () => {
+    setNewIncidentInitialData(null)
+    setIsNewModalOpen(true)
+  }
 
   // Seed demo incidents with realistic commercial banking scenarios
   const [incidents, setIncidents] = useState<IncidentItem[]>([
@@ -581,7 +610,7 @@ export default function App() {
           setIsAssertModalOpen(true)
         } else if (e.key === "n") {
           e.preventDefault()
-          setIsNewModalOpen(true)
+          openNewIncident()
         }
       }
     }
@@ -597,7 +626,13 @@ export default function App() {
     setTheme((prev) => (prev === "light" ? "dark" : "light"))
   }
 
-  const handleCreateIncident = async (title: string, summary: string, severity: any) => {
+  const handleCreateIncident = async (
+    title: string, 
+    summary: string, 
+    severity: any, 
+    _overridePii?: boolean, 
+    _overrideReason?: string
+  ) => {
     const newInc: IncidentItem = {
       id: `inc-${Date.now()}`,
       incident_number: `INC-2026-${String(incidents.length + 1).padStart(4, "0")}`,
@@ -654,6 +689,18 @@ export default function App() {
     }
     setIncidents([newInc, ...incidents])
     setSelectedIncidentId(newInc.id)
+  }
+
+  const handleCreateIncidentFromAnomaly = (alert: LiveAnomalyAlert) => {
+    const title = `[${alert.category}] ${alert.title}`
+    const summary = `Source Tool: ${alert.tool_name} (${alert.category})\nAffected Asset: ${alert.affected_asset}\nTelemetry Metric Spike: ${alert.anomalous_metric}\nMITRE ATT&CK: ${alert.mitre_attack_id}\n\nThreat Description:\n${alert.description}\n\nAutomated Containment Action: ${alert.automated_response} (${alert.response_status})`
+    const severity: "low" | "medium" | "high" | "critical" = alert.severity === "critical" ? "critical" : alert.severity === "high" ? "high" : "medium"
+
+    // Fill form in the incident menu without direct submission
+    setNewIncidentInitialData({ title, summary, severity })
+    setIsNewModalOpen(true)
+    acknowledgeAnomaly(alert.id)
+    navigateTo("command")
   }
 
   const handleTransition = (targetStatus: any) => {
@@ -946,6 +993,22 @@ export default function App() {
             onBackToCommand={navigateToCommand}
           />
         </Suspense>
+        {activeAnomalies.length > 0 && (
+          <LiveAnomalyNotificationModal
+            alerts={activeAnomalies}
+            onDismiss={dismissAnomaly}
+            onDismissAll={dismissAllAnomalies}
+            onAcknowledge={acknowledgeAnomaly}
+            onInspectTool={() => openDrawer()}
+            onCreateIncident={handleCreateIncidentFromAnomaly}
+            soundEnabled={soundEnabled}
+            onToggleSound={toggleSound}
+          />
+        )}
+        <LiveTelemetryDrawer 
+          onNavigateToAdmin={() => navigateTo("admin")} 
+          onCreateIncident={handleCreateIncidentFromAnomaly}
+        />
       </div>
     )
   }
@@ -1085,6 +1148,34 @@ export default function App() {
                 <span>CISO alerts: {cisoAlertsCount}</span>
               </button>
             )}
+
+            {/* Cybersecurity Tool Telemetry Status Indicator & Quick Launcher */}
+            <button
+              onClick={openDrawer}
+              className={`px-2 py-0.5 rounded-segment border font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer ${
+                hasAnomaly
+                  ? "border-status-critical/60 bg-status-critical/20 text-status-critical animate-pulse hover:bg-status-critical/30"
+                  : "border-status-ok/30 bg-status-ok/10 text-status-ok hover:bg-status-ok/20"
+              }`}
+              title="Cybersecurity Tool Telemetry Active (12 Connected Tools). Live dynamic random simulation active. Click to open live telemetry monitor & simulation controls."
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${hasAnomaly ? "bg-status-critical animate-ping" : "bg-status-ok animate-pulse"}`} />
+              <span>
+                {hasAnomaly
+                  ? `ANOMALY: ${activeAnomalies.length} Active`
+                  : `Telemetry: ${totalEps.toLocaleString()} EPS`}
+              </span>
+            </button>
+
+            {/* Local LLM Offline / Automated Fallback Status Badge */}
+            <button
+              onClick={() => navigateTo("admin")}
+              className="px-2 py-0.5 rounded-segment border border-status-due_soon/40 bg-status-due_soon/10 text-status-due_soon font-medium text-[11px] flex items-center gap-1.5 hover:bg-status-due_soon/20 transition-colors"
+              title="Local LLM Unavailable: Rule-Based Fallback Mode Active. Automated responses operating deterministically per air-gap guidelines. Click to inspect."
+            >
+              <AlertTriangle className="w-3 h-3 text-status-due_soon" />
+              <span>LLM: Rule Fallback</span>
+            </button>
 
             <div className="flex items-center gap-2 border-r border-rule pr-4 text-muted">
               <span>Next due:</span>
@@ -1249,7 +1340,7 @@ export default function App() {
                 <div className="p-3 border-b border-rule flex items-center justify-between">
                   <span className="text-xs font-semibold text-main">Active incidents ({incidents.length})</span>
                   <button
-                    onClick={() => setIsNewModalOpen(true)}
+                    onClick={openNewIncident}
                     className="px-2.5 py-1 text-xs bg-primary text-primary-fg rounded-control hover:bg-primary-hover flex items-center gap-1 focus:outline-none"
                   >
                     <Plus className="w-3 h-3" />
@@ -1342,8 +1433,17 @@ export default function App() {
         {isNewModalOpen && (
           <NewIncidentModal
             isOpen={isNewModalOpen}
-            onClose={() => setIsNewModalOpen(false)}
-            onSubmit={handleCreateIncident}
+            onClose={() => {
+              setIsNewModalOpen(false)
+              setNewIncidentInitialData(null)
+            }}
+            onSubmit={async (title, summary, severity, overridePii, overrideReason) => {
+              await handleCreateIncident(title, summary, severity, overridePii, overrideReason)
+              setIsNewModalOpen(false)
+              setNewIncidentInitialData(null)
+              setActiveTab("detail")
+            }}
+            initialData={newIncidentInitialData}
           />
         )}
 
@@ -1369,9 +1469,11 @@ export default function App() {
             onNavigateFilings={() => navigateTo("filings")}
             onNavigateAdmin={() => navigateTo("admin")}
             onNavigateVerification={() => navigateTo("verification")}
-            onOpenNewIncident={() => setIsNewModalOpen(true)}
+            onOpenNewIncident={openNewIncident}
             onOpenAssertTrigger={() => setIsAssertModalOpen(true)}
             onOpenHandover={() => setIsHandoverOpen(true)}
+            onOpenTelemetry={openDrawer}
+            onSimulateAnomaly={() => triggerAnomaly()}
             userRole={userRole}
           />
         )}
@@ -1384,8 +1486,36 @@ export default function App() {
             userRole={userRole}
           />
         )}
+
+        {/* Global Live Anomaly Notification Modal */}
+        {activeAnomalies.length > 0 && (
+          <LiveAnomalyNotificationModal
+            alerts={activeAnomalies}
+            onDismiss={dismissAnomaly}
+            onDismissAll={dismissAllAnomalies}
+            onAcknowledge={acknowledgeAnomaly}
+            onInspectTool={() => openDrawer()}
+            onCreateIncident={handleCreateIncidentFromAnomaly}
+            soundEnabled={soundEnabled}
+            onToggleSound={toggleSound}
+          />
+        )}
+
+        {/* Interactive Live Telemetry Drawer */}
+        <LiveTelemetryDrawer 
+          onNavigateToAdmin={() => navigateTo("admin")} 
+          onCreateIncident={handleCreateIncidentFromAnomaly}
+        />
       </Suspense>
       <DemoOverlay />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <TelemetryProvider>
+      <AppContent />
+    </TelemetryProvider>
   )
 }
