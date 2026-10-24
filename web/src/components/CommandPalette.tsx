@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"
-import { Search, Plus, Clock, LayoutGrid, FileText, X, Activity, BookOpenCheck, FileCheck2, Sliders, ShieldCheck } from "lucide-react"
+import { Search, Plus, Clock, LayoutGrid, FileText, X, Activity, BookOpenCheck, FileCheck2, Sliders, ShieldCheck, Flame, Radio } from "lucide-react"
 
 interface CommandPaletteProps {
   isOpen: boolean
@@ -14,6 +14,8 @@ interface CommandPaletteProps {
   onOpenNewIncident: () => void
   onOpenAssertTrigger: () => void
   onOpenHandover: () => void
+  onOpenTelemetry?: () => void
+  onSimulateAnomaly?: () => void
   userRole?: string
 }
 
@@ -30,6 +32,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onOpenNewIncident,
   onOpenAssertTrigger,
   onOpenHandover,
+  onOpenTelemetry,
+  onSimulateAnomaly,
   userRole = "analyst",
 }) => {
   const [query, setQuery] = useState("")
@@ -156,6 +160,34 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             icon: <ShieldCheck className="w-4 h-4 text-primary" />,
             action: () => {
               onNavigateVerification()
+              onClose()
+            },
+          },
+        ]
+      : []),
+    ...(onOpenTelemetry
+      ? [
+          {
+            id: "act-telemetry",
+            title: "Open live cybersecurity telemetry monitor & simulator",
+            shortcut: "g t",
+            icon: <Radio className="w-4 h-4 text-status-ok" />,
+            action: () => {
+              onOpenTelemetry()
+              onClose()
+            },
+          },
+        ]
+      : []),
+    ...(onSimulateAnomaly
+      ? [
+          {
+            id: "act-simulate-anomaly",
+            title: "Simulate live cybersecurity threat anomaly (trigger alert)",
+            shortcut: "s a",
+            icon: <Flame className="w-4 h-4 text-status-critical" />,
+            action: () => {
+              onSimulateAnomaly()
               onClose()
             },
           },

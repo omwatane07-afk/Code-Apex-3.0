@@ -378,6 +378,7 @@ class VerificationTeamEngine:
         self._log_timeline(inv_id, ReviewLoopPhase.PHASE_3_INVESTIGATE, "threat_detection_specialist", "Kavita Pillai", "MISSED_DETECTION_DETECTED", "Injected SCEN-MALWARE-01 (Process Hollowing). Zero alerts or kernel callback blocks observed.")
 
         evd_id = "EVD-SCEN-MALWARE-01-FAIL"
+        target_alerts: list[str] = []
         evd_payload = {
             "evidence_id": evd_id,
             "investigation_id": inv_id,
@@ -392,7 +393,7 @@ class VerificationTeamEngine:
                 "process_hollowing_injected": True,
                 "nt_create_section": "SUCCESS",
                 "amsi_patch": "APPLIED",
-                "target_endpoint_alerts": [],
+                "target_endpoint_alerts": target_alerts,
                 "alert_count": 0,
             },
             "sanitized_event": {"alert_count": 0, "status": "MISSED_DETECTION"},
@@ -1046,11 +1047,17 @@ class VerificationTeamEngine:
             )
             triage_item = multi_agent_bundle.triage
             reg_item = multi_agent_bundle.regulatory
-            phase3_details += (
-                f" [Local Qwen 2.5 Coder: Tactic={triage_item.tactic}, "
-                f"Technique={triage_item.technique}, "
-                f"Statute={reg_item.primary_statute}]."
-            )
+            if getattr(multi_agent_bundle, "fallback_mode", False):
+                phase3_details += (
+                    f" [AUTOMATED ALERT: Local LLM Offline -> Deterministic Rule Simulation: "
+                    f"Tactic={triage_item.tactic}, Technique={triage_item.technique}, Statute={reg_item.primary_statute}]."
+                )
+            else:
+                phase3_details += (
+                    f" [Local Qwen 2.5 Coder: Tactic={triage_item.tactic}, "
+                    f"Technique={triage_item.technique}, "
+                    f"Statute={reg_item.primary_statute}]."
+                )
 
         self._log_timeline(
             inv_id, ReviewLoopPhase.PHASE_3_INVESTIGATE,
@@ -1088,7 +1095,7 @@ class VerificationTeamEngine:
             inv_id, ReviewLoopPhase.PHASE_4_SUBMIT,
             "threat_detection_specialist", "Kavita Pillai",
             "EVIDENCE_SUBMITTED",
-            f"Canonical evidence record {evd_id} submitted with SHA-256 tamper hash {str(evd_payload['tamper_hash'])[:16]}...",
+            f"Canonical evidence record {evd_id} submitted with SHA-256 tamper hash {evd_payload['tamper_hash'][:16]}...",
         )
 
         # Phase 5: Team-Lead Review

@@ -362,3 +362,6 @@ class MultiAgentTriageBundle(BaseModel):
     passport: ToolPassportInspectorOutput
     final_verdict: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    llm_available: bool = True
+    fallback_mode: bool = False
+    alerts: list[dict[str, Any]] = Field(default_factory=list)

@@ -21,6 +21,7 @@ from cyberq.api.routes_exposure import router as exposure_router
 from cyberq.api.routes_filings import router as filings_router
 from cyberq.api.routes_incidents import router as incidents_router
 from cyberq.api.routes_intake import router as intake_router
+from cyberq.api.routes_telemetry import router as telemetry_router
 from cyberq.api.routes_verification import router as verification_router
 from cyberq.api.routes.reports import router as reports_router
 from cyberq.core.config import get_settings
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     # Routes
     app.include_router(health_router)
     app.include_router(admin_router, prefix="/api/v1")
+    app.include_router(telemetry_router, prefix="/api/v1")
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(audit_router, prefix="/api/v1")
     app.include_router(incidents_router, prefix="/api/v1")

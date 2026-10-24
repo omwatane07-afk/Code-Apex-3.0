@@ -15,6 +15,8 @@ import logging
 import os
 import re
 import time
+import uuid
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 import httpx
@@ -148,6 +150,15 @@ class OllamaLLMClient:
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
 
+    def is_available(self, timeout: float = 1.5) -> bool:
+        """Quickly probes if the local Ollama daemon is reachable and responding."""
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                res = client.get(f"{self.base_url}/api/tags")
+                return res.status_code == 200
+        except Exception:
+            return False
+
     def _chat_completion_with_retry(
         self,
         messages: list[dict[str, str]],
@@ -222,6 +233,187 @@ class OllamaLLMClient:
         trimmed = re.sub(r",\s*([}\]])", r"\1", trimmed)
         return trimmed
 
+    def generate_fallback_triage_specialist(self, alert_data: dict[str, Any]) -> TriageSpecialistOutput:
+        """Deterministic rule-based fallback response for Triage Specialist when local LLM is offline."""
+        raw_msg = (str(alert_data.get("raw_message", "")) + " " + str(alert_data.get("event_name", ""))).lower()
+        sev = str(alert_data.get("severity", "high")).lower()
+        if sev not in ("critical", "high", "medium", "low"):
+            sev = "high"
+
+        # Check if benign / dropped scan / routine maintenance
+        is_benign = any(w in raw_msg for w in ["routine maintenance", "benign scan dropped", "scheduled vulnerability scan", "authorized test"])
+        if is_benign:
+            return TriageSpecialistOutput(
+                agent="TriageSpecialist",
+                severity="low",
+                tactic="Reconnaissance",
+                technique="T1595 - Active Scanning",
+                affected_critical_systems=[],
+                triage_disposition="SUPPRESS_BENIGN",
+                summary="Routine perimeter scan or scheduled activity safely dropped by perimeter control.",
+                confidence=0.98,
+            )
+
+        # Identify tactic / technique heuristics
+        tactic = "Execution"
+        technique = "T1059 - Command and Scripting Interpreter"
+        systems: list[str] = []
+
+        if any(w in raw_msg for w in ["powershell", "wmi", "mimikatz", "memory", "injection"]):
+            tactic = "Credential Access"
+            technique = "T1003.001 - OS Credential Dumping: LSASS Memory"
+        elif any(w in raw_msg for w in ["ransomware", "encrypt", "vssadmin"]):
+            tactic = "Impact"
+            technique = "T1486 - Data Encrypted for Impact"
+        elif any(w in raw_msg for w in ["exfiltration", "aadhaar", "pan", "dump", "s3"]):
+            tactic = "Exfiltration"
+            technique = "T1041 - Exfiltration Over C2 Channel"
+        elif any(w in raw_msg for w in ["ddos", "syn flood", "saturation"]):
+            tactic = "Impact"
+            technique = "T1498 - Network Denial of Service"
+        elif any(w in raw_msg for w in ["golden ticket", "kerberos"]):
+            tactic = "Privilege Escalation"
+            technique = "T1558.001 - Golden Ticket"
+        elif any(w in raw_msg for w in ["supply chain", "pypi", "dependency"]):
+            tactic = "Initial Access"
+            technique = "T1195.002 - Compromise Software Supply Chain"
+
+        if any(w in raw_msg for w in ["rtgs", "payment"]):
+            systems.append("RTGS-PAYMENT-SWITCH")
+        if any(w in raw_msg for w in ["swift", "alliance"]):
+            systems.append("SWIFT-ALLIANCE-GATEWAY")
+        if any(w in raw_msg for w in ["cbs", "core", "oracle"]):
+            systems.append("CBS-CORE-BANKING-CLUSTER")
+        if not systems:
+            systems.append(str(alert_data.get("destination_hostname") or "BANK-INTERNAL-INFRASTRUCTURE"))
+
+        return TriageSpecialistOutput(
+            agent="TriageSpecialist",
+            severity=sev,
+            tactic=tactic,
+            technique=technique,
+            affected_critical_systems=systems,
+            triage_disposition="ESCALATE_TO_INCIDENT" if sev in ("critical", "high") else "REQUIRES_DEEP_INSPECTION",
+            summary=f"Automated rule-based triage: {alert_data.get('event_name', 'Security Alert')} affecting {', '.join(systems)}. Local LLM offline - fallback engine active.",
+            confidence=0.92,
+        )
+
+    def generate_fallback_regulatory_matcher(
+        self,
+        alert_data: dict[str, Any],
+        cve_ids: list[str] | None = None,
+    ) -> RegulatoryClauseMatcherOutput:
+        """Deterministic rule-based fallback response for Regulatory Clause Matcher when local LLM is offline."""
+        raw_msg = (str(alert_data.get("raw_message", "")) + " " + str(alert_data.get("event_name", ""))).lower()
+        is_benign = any(w in raw_msg for w in ["routine maintenance", "benign scan dropped", "scheduled vulnerability scan", "authorized test"])
+
+        if is_benign:
+            return RegulatoryClauseMatcherOutput(
+                agent="RegulatoryClauseMatcher",
+                is_reportable=False,
+                primary_statute="None",
+                deadline_hours=0,
+                matched_clauses=[],
+                reasoning="Suppressed benign activity requires no statutory regulatory filing.",
+                confidence=0.99,
+            )
+
+        grounded = ground_regulatory_clauses([], alert_data, is_reportable=True)
+        primary = "CERT-In Directions 2022"
+        hours = 6
+        if any("dpdp" in c.lower() for c in grounded):
+            primary = "DPDP Act 2023"
+            hours = 72
+
+        return RegulatoryClauseMatcherOutput(
+            agent="RegulatoryClauseMatcher",
+            is_reportable=True,
+            primary_statute=primary,
+            deadline_hours=hours,
+            matched_clauses=grounded,
+            reasoning=f"Mandatory disclosure window evaluated under {primary} based on alert telemetry. Local LLM offline - deterministic statutory taxonomy mapping applied.",
+            confidence=0.95,
+        )
+
+    def generate_fallback_passport_inspector(
+        self,
+        tool_id: str,
+        passport_data: dict[str, Any] | None = None,
+    ) -> ToolPassportInspectorOutput:
+        """Deterministic rule-based fallback response for Tool Passport Inspector when local LLM is offline."""
+        is_unverified = bool(
+            passport_data.get("is_unverified", False) or passport_data.get("is_telemetry_unverified", False)
+        ) if passport_data else False
+        vapt_valid = bool(passport_data.get("vapt_valid", True)) if passport_data else True
+        trust_status = "DEGRADED" if (is_unverified or not vapt_valid) else str((passport_data or {}).get("trust_status", "VERIFIED"))
+
+        obs = [f"Tool compliance inspected for {tool_id}"]
+        if not vapt_valid or is_unverified:
+            obs.append("Tool VAPT certification is expired or invalid under RBI Master Directions on IT Governance Para 90.")
+            risk = "high"
+        else:
+            obs.append("Tool passport is in good standing with valid VAPT certification.")
+            risk = "low"
+
+        return ToolPassportInspectorOutput(
+            agent="ToolPassportInspector",
+            tool_id=tool_id,
+            trust_status=trust_status,
+            vapt_valid=vapt_valid,
+            is_telemetry_unverified=is_unverified or not vapt_valid,
+            observations=obs,
+            risk_level=risk,
+        )
+
+    def generate_fallback_multi_agent_bundle(
+        self,
+        event_data: dict[str, Any],
+        passport_data: dict[str, Any] | None = None,
+        investigation_id: str | None = None,
+        reason: str = "Local Ollama service unreachable",
+    ) -> MultiAgentTriageBundle:
+        """Generates simulated multi-agent bundle and automated alert when local LLM is offline."""
+        inv_id = investigation_id or f"INV-FALLBACK-{int(time.time())}"
+        evt_id = str(event_data.get("event_id") or "EVT-SIM")
+        tool_id = str(event_data.get("source_tool") or "generic_tool")
+
+        alert = {
+            "alert_id": f"LLM-ALERT-{uuid.uuid4().hex[:8].upper()}",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "alert_type": "LOCAL_LLM_UNAVAILABLE",
+            "severity": "warning",
+            "title": "Local LLM Inference Offline – Deterministic Fallback Mode Engaged",
+            "detail": f"Local Ollama endpoint ({self.base_url}) is unreachable ({reason}). Automated multi-agent evaluation switched seamlessly to deterministic rule-based response simulation.",
+            "remediation": "Start local Ollama daemon (`ollama serve`) and load `qwen2.5-coder`. Ensure port 11434 is listening.",
+            "automated_response": "Deterministic static taxonomy mapping and RBI/CERT-In clause matching successfully executed.",
+        }
+
+        triage_out = self.generate_fallback_triage_specialist(event_data)
+        reg_out = self.generate_fallback_regulatory_matcher(event_data, cve_ids=event_data.get("cve_ids"))
+        passport_out = self.generate_fallback_passport_inspector(tool_id, passport_data)
+
+        final_verdict = "PASS"
+        if passport_out.is_telemetry_unverified or passport_out.trust_status == "DEGRADED":
+            final_verdict = "CONDITIONAL"
+        elif triage_out.triage_disposition == "SUPPRESS_BENIGN":
+            final_verdict = "PASS"
+        elif triage_out.severity in ("critical", "high") and triage_out.triage_disposition == "ESCALATE_TO_INCIDENT":
+            final_verdict = "PASS"
+
+        return MultiAgentTriageBundle(
+            investigation_id=inv_id,
+            event_id=evt_id,
+            source_tool=tool_id,
+            model_used=self.model,
+            triage=triage_out,
+            regulatory=reg_out,
+            passport=passport_out,
+            final_verdict=final_verdict,
+            llm_available=False,
+            fallback_mode=True,
+            alerts=[alert],
+        )
+
     def run_triage_specialist(self, alert_data: dict[str, Any]) -> TriageSpecialistOutput:
         """Agent 1: Tier-3 SOC Triage Specialist evaluating threats, tactics, and affected bank systems."""
         system_prompt = (  # noqa: S608
@@ -250,20 +442,12 @@ class OllamaLLMClient:
             {"role": "user", "content": user_prompt},
         ]
 
-        raw_json = self._chat_completion_with_retry(messages, num_predict=300)
         try:
+            raw_json = self._chat_completion_with_retry(messages, num_predict=300)
             return TriageSpecialistOutput.model_validate(raw_json)
-        except Exception:
-            return TriageSpecialistOutput(
-                agent="TriageSpecialist",
-                severity=str(raw_json.get("severity", "high")).lower(),
-                tactic=str(raw_json.get("tactic", "Unknown")),
-                technique=str(raw_json.get("technique", "Unknown")),
-                affected_critical_systems=list(raw_json.get("affected_critical_systems", [])),
-                triage_disposition=str(raw_json.get("triage_disposition", "ESCALATE_TO_INCIDENT")),
-                summary=str(raw_json.get("summary", "Automated triage completed")),
-                confidence=float(raw_json.get("confidence", 0.90)),
-            )
+        except Exception as exc:
+            logger.warning("Local Ollama TriageSpecialist inference unavailable (%s). Falling back to rule-based simulation.", exc)
+            return self.generate_fallback_triage_specialist(alert_data)
 
     def run_regulatory_matcher(
         self,
@@ -304,25 +488,17 @@ class OllamaLLMClient:
             {"role": "user", "content": user_prompt},
         ]
 
-        raw_json = self._chat_completion_with_retry(messages, num_predict=300)
-        is_reportable = bool(raw_json.get("is_reportable", True))
-        raw_clauses = list(raw_json.get("matched_clauses", []))
-        grounded_clauses = ground_regulatory_clauses(raw_clauses, alert_data, is_reportable)
-
         try:
+            raw_json = self._chat_completion_with_retry(messages, num_predict=300)
+            is_reportable = bool(raw_json.get("is_reportable", True))
+            raw_clauses = list(raw_json.get("matched_clauses", []))
+            grounded_clauses = ground_regulatory_clauses(raw_clauses, alert_data, is_reportable)
             out = RegulatoryClauseMatcherOutput.model_validate(raw_json)
             out.matched_clauses = grounded_clauses
             return out
-        except Exception:
-            return RegulatoryClauseMatcherOutput(
-                agent="RegulatoryClauseMatcher",
-                is_reportable=is_reportable,
-                primary_statute=str(raw_json.get("primary_statute", "CERT-In Directions 2022")),
-                deadline_hours=int(raw_json.get("deadline_hours", 6 if is_reportable else 0)),
-                matched_clauses=grounded_clauses,
-                reasoning=str(raw_json.get("reasoning", "Statutory reporting evaluated.")),
-                confidence=float(raw_json.get("confidence", 0.95)),
-            )
+        except Exception as exc:
+            logger.warning("Local Ollama RegulatoryClauseMatcher inference unavailable (%s). Falling back to rule-based simulation.", exc)
+            return self.generate_fallback_regulatory_matcher(alert_data, cve_ids=cve_ids)
 
     def run_passport_inspector(
         self,
@@ -357,19 +533,12 @@ class OllamaLLMClient:
             {"role": "user", "content": user_prompt},
         ]
 
-        raw_json = self._chat_completion_with_retry(messages, num_predict=250)
         try:
+            raw_json = self._chat_completion_with_retry(messages, num_predict=250)
             return ToolPassportInspectorOutput.model_validate(raw_json)
-        except Exception:
-            return ToolPassportInspectorOutput(
-                agent="ToolPassportInspector",
-                tool_id=str(raw_json.get("tool_id", tool_id)),
-                trust_status=str(raw_json.get("trust_status", "VERIFIED")),
-                vapt_valid=bool(raw_json.get("vapt_valid", True)),
-                is_telemetry_unverified=bool(raw_json.get("is_telemetry_unverified", False)),
-                observations=list(raw_json.get("observations", ["Tool compliance validated"])),
-                risk_level=str(raw_json.get("risk_level", "low")),
-            )
+        except Exception as exc:
+            logger.warning("Local Ollama ToolPassportInspector inference unavailable (%s). Falling back to rule-based simulation.", exc)
+            return self.generate_fallback_passport_inspector(tool_id, passport_data)
 
     def run_unified_multi_agent(
         self,
@@ -410,7 +579,19 @@ class OllamaLLMClient:
             {"role": "user", "content": json.dumps(user_content, indent=2)},
         ]
 
-        raw_json = self._chat_completion_with_retry(messages, num_predict=550)
+        try:
+            raw_json = self._chat_completion_with_retry(messages, num_predict=550)
+        except Exception as exc:
+            logger.warning(
+                "Local Ollama inference failed (%s). Raising automated alert and generating deterministic fallback response.",
+                exc,
+            )
+            return self.generate_fallback_multi_agent_bundle(
+                event_data=event_data,
+                passport_data=passport_data,
+                investigation_id=inv_id,
+                reason=str(exc),
+            )
 
         # Parse triage section
         raw_triage = raw_json.get("triage", {})
@@ -508,41 +689,50 @@ class OllamaLLMClient:
         use_unified: bool = True,
     ) -> MultiAgentTriageBundle:
         """Executes the multi-agent pipeline with local Qwen 2.5 Coder."""
-        if use_unified:
-            return self.run_unified_multi_agent(
+        try:
+            if use_unified:
+                return self.run_unified_multi_agent(
+                    event_data=event_data,
+                    passport_data=passport_data,
+                    investigation_id=investigation_id,
+                )
+
+            inv_id = investigation_id or f"INV-QWEN-{int(time.time())}"
+            evt_id = str(event_data.get("event_id") or "EVT-SIM")
+            tool_id = str(event_data.get("source_tool") or "generic_tool")
+            cves = list(event_data.get("cve_ids", []))
+
+            # 1. Triage Agent
+            triage_out = self.run_triage_specialist(event_data)
+
+            # 2. Regulatory Matcher Agent
+            reg_out = self.run_regulatory_matcher(event_data, cve_ids=cves)
+
+            # 3. Tool Passport Inspector Agent
+            passport_out = self.run_passport_inspector(tool_id, passport_data)
+
+            # Deterministic Verdict assignment rules
+            final_verdict = "PASS"
+            if passport_out.is_telemetry_unverified or passport_out.trust_status == "DEGRADED":
+                final_verdict = "CONDITIONAL"
+            elif triage_out.severity == "critical" and triage_out.triage_disposition == "ESCALATE_TO_INCIDENT":
+                final_verdict = "PASS"
+
+            return MultiAgentTriageBundle(
+                investigation_id=inv_id,
+                event_id=evt_id,
+                source_tool=tool_id,
+                model_used=self.model,
+                triage=triage_out,
+                regulatory=reg_out,
+                passport=passport_out,
+                final_verdict=final_verdict,
+            )
+        except Exception as exc:
+            logger.warning("run_multi_agent_pipeline encountered error (%s). Falling back.", exc)
+            return self.generate_fallback_multi_agent_bundle(
                 event_data=event_data,
                 passport_data=passport_data,
                 investigation_id=investigation_id,
+                reason=str(exc),
             )
-
-        inv_id = investigation_id or f"INV-QWEN-{int(time.time())}"
-        evt_id = str(event_data.get("event_id") or "EVT-SIM")
-        tool_id = str(event_data.get("source_tool") or "generic_tool")
-        cves = list(event_data.get("cve_ids", []))
-
-        # 1. Triage Agent
-        triage_out = self.run_triage_specialist(event_data)
-
-        # 2. Regulatory Matcher Agent
-        reg_out = self.run_regulatory_matcher(event_data, cve_ids=cves)
-
-        # 3. Tool Passport Inspector Agent
-        passport_out = self.run_passport_inspector(tool_id, passport_data)
-
-        # Deterministic Verdict assignment rules
-        final_verdict = "PASS"
-        if passport_out.is_telemetry_unverified or passport_out.trust_status == "DEGRADED":
-            final_verdict = "CONDITIONAL"
-        elif triage_out.severity == "critical" and triage_out.triage_disposition == "ESCALATE_TO_INCIDENT":
-            final_verdict = "PASS"
-
-        return MultiAgentTriageBundle(
-            investigation_id=inv_id,
-            event_id=evt_id,
-            source_tool=tool_id,
-            model_used=self.model,
-            triage=triage_out,
-            regulatory=reg_out,
-            passport=passport_out,
-            final_verdict=final_verdict,
-        )
