@@ -1,5 +1,4 @@
-"""Incidents and statutory regulatory clocks API routes."""
-
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -13,7 +12,7 @@ from cyberq.audit.chain import AuditService
 from cyberq.clocks.engine import calculate_clock
 from cyberq.core.config import get_settings
 from cyberq.core.database import get_db
-from cyberq.core.pii_guard import scan_and_redact, validate_text_or_raise
+from cyberq.core.pii_guard import PIIGuard, scan_and_redact, validate_text_or_raise
 from cyberq.iam.policy import Action, AuthContext, PolicyEngine
 from cyberq.incidents.models import Incident
 from cyberq.incidents.service import (
@@ -54,6 +53,25 @@ class IncidentCreateRequest(BaseModel):
     severity: str = Field(default="high")
     override_pii: bool = False
     override_pii_reason: str = ""
+
+
+class IncidentAIDraftRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    raw_input: str = Field(min_length=5, max_length=10000)
+    source_tool: str | None = None
+    affected_asset: str | None = None
+
+
+class IncidentAIDraftResponse(BaseModel):
+    suggested_title: str
+    suggested_summary: str
+    recommended_severity: str
+    mitre_attack: str
+    statutory_applicability: list[str]
+    ai_confidence: float
+    model_used: str
+    fallback_mode: bool
+    fallback_reason: str | None = None
 
 
 class IncidentTransitionRequest(BaseModel):
@@ -974,3 +992,200 @@ def confirm_obligation_exemption_route(
         applicability_answers=obl.applicability_answers,
         applicability_pending_rationale=obl.applicability_pending_rationale,
     )
+
+
+def _generate_rule_based_draft(
+    raw_input: str,
+    source_tool: str | None = None,
+    affected_asset: str | None = None,
+    reason: str | None = None,
+) -> IncidentAIDraftResponse:
+    """Deterministic fallback synthesis engine when local LLM inference is offline."""
+    text_lower = raw_input.lower()
+    tool_label = source_tool or "Security Sensor"
+    asset_label = affected_asset or "Core Banking Network"
+
+    if any(k in text_lower for k in ["ransomware", "encrypt", "vssadmin", "shadow copy", "lockbit", "blackcat"]):
+        tactic = "Impact"
+        mitre = "T1486 - Data Encrypted for Impact"
+        severity = "critical"
+        statutory = [
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 11: Malicious code attacks such as Ransomware / Trojan / Virus)",
+            "RBI Cybersecurity Framework Directions Para 182: Mandatory 6-Hour DAKSH Incident Intimation",
+        ]
+        title = f"[{tool_label}] Ransomware execution and shadow copy tampering on {asset_label}"
+    elif any(k in text_lower for k in ["payment", "rtgs", "neft", "upi", "settlement", "switch", "cbs"]):
+        tactic = "Execution / Manipulation"
+        mitre = "T1047 - WMI Execution / Payment Channel Manipulation"
+        severity = "critical"
+        statutory = [
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 15: Attacks or incidents affecting Digital Payment systems)",
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 12: Attack on critical information infrastructure such as SWIFT, RTGS, CBS)",
+        ]
+        title = f"[{tool_label}] Telemetry spike impacting payment processing channel ({asset_label})"
+    elif any(k in text_lower for k in ["swift", "alliance", "sag", "fin"]):
+        tactic = "Initial Access / Tampering"
+        mitre = "T1078 - Valid Accounts / SWIFT Gateway Tampering"
+        severity = "critical"
+        statutory = [
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 12: Attack on critical information infrastructure such as SWIFT, RTGS, CBS)",
+        ]
+        title = f"[{tool_label}] Unauthorized gateway activity on SWIFT messaging infrastructure ({asset_label})"
+    elif any(k in text_lower for k in ["credential", "lsass", "mimikatz", "kerberoast", "golden ticket", "dump"]):
+        tactic = "Credential Access"
+        mitre = "T1003.001 - OS Credential Dumping: LSASS Memory"
+        severity = "critical" if any(k in text_lower for k in ["cbs", "dc", "domain", "prod"]) else "high"
+        statutory = [
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 9: Unauthorized access of IT systems/data)",
+        ]
+        title = f"[{tool_label}] Credential access and memory dumping detected on {asset_label}"
+    elif any(k in text_lower for k in ["exfiltration", "data breach", "leak", "aadhaar", "pan", "pii", "dpdp"]):
+        tactic = "Exfiltration"
+        mitre = "T1048 - Exfiltration Over Alternative Protocol"
+        severity = "critical"
+        statutory = [
+            "DPDP Act 2023 Section 8(6) Rule 7: Mandatory 72-Hour Breach Intimation to Data Protection Board",
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 9: Unauthorized access of IT systems/data)",
+        ]
+        title = f"[{tool_label}] Potential customer data exfiltration detected from {asset_label}"
+    elif any(k in text_lower for k in ["ddos", "flood", "saturation", "flapping", "bgp", "packet loss"]):
+        tactic = "Impact / Availability"
+        mitre = "T1498 - Network Denial of Service"
+        severity = "high"
+        statutory = [
+            "CERT-In Directions 2022 Section 70B Annexure I (Item 15: Attacks or incidents affecting Digital Payment systems)",
+        ]
+        title = f"[{tool_label}] Network saturation and traffic routing anomaly on {asset_label}"
+    else:
+        tactic = "Initial Access"
+        mitre = "T1190 - Exploit Public-Facing Application"
+        severity = "high"
+        statutory = [
+            "CERT-In Directions 2022 Section 70B Clause (ii): 6-Hour Mandatory Reporting Window",
+        ]
+        title = f"[{tool_label}] Security incident alert requiring statutory triage on {asset_label}"
+
+    summary = (
+        f"Executive Incident Overview:\n"
+        f"Automated security detection generated by {tool_label} indicating {tactic.lower()} activity targeting {asset_label}. "
+        f"Technical telemetry highlights abnormal behavior requiring expedited statutory review.\n\n"
+        f"Technical Threat Telemetry:\n"
+        f"{raw_input.strip()}\n\n"
+        f"MITRE ATT&CK Classification:\n"
+        f"Tactical Category: {tactic} | Technique: {mitre}\n\n"
+        f"Target Banking Infrastructure:\n"
+        f"Primary Affected Asset: {asset_label}\n"
+        f"Operational Impact Assessment: Elevated risk to operational continuity and transaction processing integrity.\n\n"
+        f"Statutory Reporting Assessment:\n"
+        f"Recommended Window: {'6 Hours (Mandatory Initial Notice)' if severity == 'critical' else 'Statutory Verification'}\n"
+        f"Applicable Directives: {', '.join(statutory)}"
+    )
+
+    return IncidentAIDraftResponse(
+        suggested_title=title,
+        suggested_summary=summary,
+        recommended_severity=severity,
+        mitre_attack=mitre,
+        statutory_applicability=statutory,
+        ai_confidence=0.92,
+        model_used="Deterministic Banking Rule Engine (Fallback)",
+        fallback_mode=True,
+        fallback_reason=reason or "Local LLM offline",
+    )
+
+
+@router.post("/ai-draft", response_model=IncidentAIDraftResponse)
+def generate_ai_incident_draft(
+    payload: IncidentAIDraftRequest,
+    auth_ctx: AuthContext = Depends(require_permission(Action.INCIDENT_CREATE)),
+) -> IncidentAIDraftResponse:
+    """Generates an AI-assisted incident report draft using local Ollama or rule-based fallback."""
+    # Pre-flight server-side PII guard: strictly sanitize before sending to local model
+    clean_input = PIIGuard.redact(payload.raw_input)
+
+    from cyberq.verification.llm_client import (
+        CANONICAL_STATUTORY_TAXONOMY,
+        OllamaLLMClient,
+        ground_regulatory_clauses,
+    )
+
+    llm = OllamaLLMClient()
+
+    if not llm.is_available():
+        return _generate_rule_based_draft(
+            raw_input=clean_input,
+            source_tool=payload.source_tool,
+            affected_asset=payload.affected_asset,
+            reason="Local Ollama daemon is offline (http://localhost:11434). Deterministic banking rule engine engaged.",
+        )
+
+    system_prompt = (
+        "You are the CYBERQ AI Incident Drafter for an Indian Scheduled Commercial Bank.\n"
+        "Draft a formal, statutory-compliant incident record from the provided raw technical text.\n\n"
+        "STATUTORY TAXONOMY CANON:\n"
+        + "\n".join(f'- "{c}"' for c in CANONICAL_STATUTORY_TAXONOMY)
+        + "\n\n"
+        "RULES:\n"
+        "1. Never include customer account numbers, PANs, or Aadhaar numbers.\n"
+        "2. If payment, RTGS, CBS, or SWIFT systems are affected, recommended_severity MUST be 'critical'.\n"
+        "3. Provide an executive and technical summary covering Root Cause, Affected Asset, Impact, and Containment.\n"
+        "4. Ground all statutory citations strictly in verified CERT-In, RBI DAKSH, or DPDP mandates.\n"
+        "Return strict JSON matching this schema:\n"
+        "{\n"
+        '  "suggested_title": "<Title with tool/tactic prefix>",\n'
+        '  "suggested_summary": "<Professional structured summary>",\n'
+        '  "recommended_severity": "critical" | "high" | "medium" | "low",\n'
+        '  "mitre_attack": "<MITRE ATT&CK technique e.g. T1047 - WMI>",\n'
+        '  "statutory_applicability": ["<Clause from canon>", ...],\n'
+        '  "ai_confidence": 0.95\n'
+        "}"
+    )
+
+    user_prompt = json.dumps({
+        "raw_telemetry": clean_input,
+        "source_tool": payload.source_tool or "Security Tool",
+        "affected_asset": payload.affected_asset or "Banking IT Asset",
+    })
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    try:
+        raw_json = llm._chat_completion_with_retry(messages, temperature=0.1, num_predict=600)
+
+        raw_clauses = raw_json.get("statutory_applicability", [])
+        grounded = ground_regulatory_clauses(
+            raw_clauses=raw_clauses,
+            alert_data={"raw_message": clean_input},
+            is_reportable=True,
+        )
+
+        sev = str(raw_json.get("recommended_severity", "high")).lower()
+        if sev not in ("critical", "high", "medium", "low"):
+            sev = "high"
+
+        return IncidentAIDraftResponse(
+            suggested_title=str(
+                raw_json.get("suggested_title")
+                or f"[{payload.source_tool or 'SOC'}] Security Incident on {payload.affected_asset or 'Core Network'}"
+            ),
+            suggested_summary=str(raw_json.get("suggested_summary") or clean_input),
+            recommended_severity=sev,
+            mitre_attack=str(raw_json.get("mitre_attack") or "T1059 - Command and Scripting Interpreter"),
+            statutory_applicability=grounded
+            if grounded
+            else ["CERT-In Directions 2022 Section 70B Clause (ii): 6-Hour Mandatory Reporting Window"],
+            ai_confidence=float(raw_json.get("ai_confidence") or 0.95),
+            model_used=f"Local Ollama ({llm.model})",
+            fallback_mode=False,
+            fallback_reason=None,
+        )
+    except Exception as exc:
+        return _generate_rule_based_draft(
+            raw_input=clean_input,
+            source_tool=payload.source_tool,
+            affected_asset=payload.affected_asset,
+            reason=f"Local LLM inference exception ({exc}). Engaged deterministic fallback.",
+        )

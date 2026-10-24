@@ -88,19 +88,41 @@ _TECH_EXCLUSIONS_REGEX = re.compile(
     r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"  # IPv4
     r"|\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b"  # IPv6
     r"|\b\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b"  # Timestamps ISO
+    r"|\b\d{2}[/-]\d{2}[/-]\d{4}\b"  # Dates
     r"|\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"  # UUID
     r"|\b(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{40}|[0-9a-fA-F]{64})\b"  # MD5, SHA1, SHA256 hashes
-    r")"
+    r"|\bCVE-\d{4}-\d{4,7}\b"  # CVE identifiers
+    r"|\bT\d{4}(?:\.\d{3})?\b"  # MITRE ATT&CK technique IDs
+    r"|\b(?:INC|ALT|ANOM|EVD|INV)-\d{4,}[A-Za-z0-9\-]*\b"  # System incident IDs
+    r")",
+    re.IGNORECASE,
 )
 
 _PAN_REGEX = re.compile(
     r"(?<![A-Za-z0-9])([A-Za-z]{5}[\s\-_.]?[0-9]{4}[\s\-_.]?[A-Za-z])(?![A-Za-z0-9])"
 )
-_CARD_CANDIDATE_REGEX = re.compile(r"\b([3-6][0-9]{3}[\s-]?[0-9]{4}[\s-]?[0-9]{4}[\s-]?[0-9]{1,7})\b")
+_CARD_CANDIDATE_REGEX = re.compile(r"\b([3-6][0-9]{3}[\s\-_.]?[0-9]{4}[\s\-_.]?[0-9]{4}[\s\-_.]?[0-9]{1,7})\b")
 
 # Aadhaar candidate regex supporting evasions: spaces, dots, hyphens, underscores, colons, commas, pipes, slashes, and zero-width characters
 _AADHAAR_CANDIDATE_REGEX = re.compile(
-    r"(?<!\d)([2-9][0-9]{3}[\s\-._/:,\|\u200b-\u200d\ufeff]*[0-9]{4}[\s\-._/:,\|\u200b-\u200d\ufeff]*[0-9]{4})(?!\d)"
+    r"(?<!\d)([2-9][0-9]{3}[\s\-._/:,\|\u200b-\u200d\ufeff\u00a0]*[0-9]{4}[\s\-._/:,\|\u200b-\u200d\ufeff\u00a0]*[0-9]{4})(?!\d)"
+)
+
+# Bank Account Number with contextual prefix (A/C, Account, Acct, IBAN)
+_BANK_ACCOUNT_REGEX = re.compile(
+    r"(?:\b(?:A\/C|acc|account|acct|iban)\s*(?:no\.?|num\.?|number)?\s*[:#-]?\s*)([0-9]{9,18})\b",
+    re.IGNORECASE,
+)
+
+# Indian mobile phone number: 10 digits starting with 6-9, optionally prefixed by +91, 91, or 0
+_PHONE_REGEX = re.compile(
+    r"(?<!\d)(?:(?:\+91|91|0)[\s\-]?)?([6-9]\d{4}[\s\-]?\d{5})(?!\d)"
+)
+
+# Email address regex
+_EMAIL_REGEX = re.compile(
+    r"\b([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)\b",
+    re.IGNORECASE,
 )
 
 
@@ -144,6 +166,21 @@ class PIIGuard:
                 continue
             if validate_luhn(digits):
                 findings.append({"type": "CARD", "match": raw})
+
+        # 4. Bank Account detection
+        for match in _BANK_ACCOUNT_REGEX.finditer(masked_text):
+            findings.append({"type": "BANK_ACCOUNT", "match": match.group(1)})
+
+        # 5. Mobile Phone detection
+        for match in _PHONE_REGEX.finditer(masked_text):
+            raw_phone = match.group(0)
+            digits = "".join(filter(str.isdigit, raw_phone))
+            if 10 <= len(digits) <= 12 and digits[-10] in "6789":
+                findings.append({"type": "PHONE", "match": raw_phone})
+
+        # 6. Email detection
+        for match in _EMAIL_REGEX.finditer(masked_text):
+            findings.append({"type": "EMAIL", "match": match.group(1)})
 
         return findings
 

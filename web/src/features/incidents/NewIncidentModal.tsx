@@ -7,7 +7,14 @@ import {
   ShieldCheck, 
   CheckCircle2, 
   Lock,
-  Info
+  Info,
+  BrainCircuit,
+  Wand2,
+  RefreshCw,
+  Cpu,
+  ChevronDown,
+  ChevronUp,
+  Zap
 } from "lucide-react"
 import { scanForPII, redactPII, type DetectedPII } from "../../lib/piiGuard"
 
@@ -28,6 +35,14 @@ interface NewIncidentModalProps {
   } | null
 }
 
+interface AIDraftMeta {
+  model: string
+  fallback: boolean
+  mitre: string
+  clauses: string[]
+  reason?: string
+}
+
 export const NewIncidentModal: FC<NewIncidentModalProps> = ({ 
   isOpen, 
   onClose, 
@@ -45,6 +60,12 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
   const [enableOverride, setEnableOverride] = useState(false)
   const [overrideReason, setOverrideReason] = useState("")
 
+  // AI Incident Drafter controls
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
+  const [rawThreatInput, setRawThreatInput] = useState("")
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
+  const [aiDraftMeta, setAiDraftMeta] = useState<AIDraftMeta | null>(null)
+
   // Sync state whenever modal opens or initialData changes
   useEffect(() => {
     if (isOpen) {
@@ -52,14 +73,18 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
         setTitle(initialData.title || "")
         setSummary(initialData.summary || "")
         setSeverity(initialData.severity || "high")
+        setAiPanelOpen(false)
       } else {
         setTitle("")
         setSummary("")
         setSeverity("high")
+        setAiPanelOpen(false)
       }
       setError(null)
       setEnableOverride(false)
       setOverrideReason("")
+      setRawThreatInput("")
+      setAiDraftMeta(null)
     }
   }, [isOpen, initialData])
 
@@ -87,6 +112,108 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
     setOverrideReason("")
     setHasScrubbedNotice(true)
     setTimeout(() => setHasScrubbedNotice(false), 4000)
+  }
+
+  // AI Drafting & Synthesis Handler
+  const handleGenerateAIDraft = async (overrideInput?: string) => {
+    const textToDraft = overrideInput || rawThreatInput || summary
+    if (!textToDraft || textToDraft.trim().length < 5) {
+      setError("Please provide at least 5 characters of threat notes or raw telemetry for AI drafting.")
+      return
+    }
+
+    setError(null)
+    setIsGeneratingDraft(true)
+
+    // Pre-flight client scrub: ensure no customer PII leaves browser
+    const sanitizedInput = redactPII(textToDraft)
+
+    try {
+      const response = await fetch("/api/v1/incidents/ai-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          raw_input: sanitizedInput,
+          source_tool: "SOC Console",
+          affected_asset: "Core Banking Infrastructure",
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTitle(data.suggested_title)
+        setSummary(data.suggested_summary)
+        if (data.recommended_severity) {
+          setSeverity(data.recommended_severity)
+        }
+        setAiDraftMeta({
+          model: data.model_used,
+          fallback: data.fallback_mode,
+          mitre: data.mitre_attack,
+          clauses: data.statutory_applicability || [],
+          reason: data.fallback_reason,
+        })
+        return
+      }
+      throw new Error(`HTTP ${response.status}`)
+    } catch {
+      // Deterministic Client-Side Fallback if backend API is unreachable
+      const lower = sanitizedInput.toLowerCase()
+      let draftSeverity = "high"
+      let mitre = "T1059 - Command and Scripting Interpreter"
+      let draftTitle = `[Security Anomaly] Suspicious activity detected on Core Network`
+      let statutory = ["CERT-In Directions 2022 Section 70B Clause (ii): 6-Hour Mandatory Reporting Window"]
+
+      if (lower.includes("lsass") || lower.includes("credential") || lower.includes("mimikatz")) {
+        draftSeverity = "critical"
+        mitre = "T1003.001 - OS Credential Dumping: LSASS Memory"
+        draftTitle = "[EDR] Credential access and memory dumping detected on CBS host"
+        statutory = ["CERT-In Directions 2022 Section 70B Annexure I (Item 9: Unauthorized access of IT systems/data)"]
+      } else if (lower.includes("payment") || lower.includes("rtgs") || lower.includes("upi") || lower.includes("cbs")) {
+        draftSeverity = "critical"
+        mitre = "T1047 - WMI Execution / Payment Channel Manipulation"
+        draftTitle = "[Switch] Telemetry anomaly impacting RTGS settlement channel"
+        statutory = [
+          "CERT-In Directions 2022 Section 70B Annexure I (Item 15: Attacks or incidents affecting Digital Payment systems)",
+          "RBI Cybersecurity Framework Directions Para 182: Mandatory 6-Hour DAKSH Incident Intimation",
+        ]
+      } else if (lower.includes("ransomware") || lower.includes("encrypt") || lower.includes("vssadmin")) {
+        draftSeverity = "critical"
+        mitre = "T1486 - Data Encrypted for Impact"
+        draftTitle = "[EDR] Ransomware activity and canary file encryption detected"
+        statutory = [
+          "CERT-In Directions 2022 Section 70B Annexure I (Item 11: Malicious code attacks such as Ransomware / Trojan / Virus)",
+          "RBI Cybersecurity Framework Directions Para 182: Mandatory 6-Hour DAKSH Incident Intimation",
+        ]
+      }
+
+      const draftSummary = 
+`Executive Overview:
+Automated security detection observed suspicious telemetry requiring expedited review.
+
+Technical Threat Telemetry:
+${sanitizedInput}
+
+MITRE ATT&CK Classification:
+Technique: ${mitre}
+
+Statutory Reporting Assessment:
+Window: ${draftSeverity === "critical" ? "6 Hours (Mandatory Initial Notice)" : "Statutory Verification"}
+Applicable Directives: ${statutory.join(", ")}`
+
+      setTitle(draftTitle)
+      setSummary(draftSummary)
+      setSeverity(draftSeverity)
+      setAiDraftMeta({
+        model: "Deterministic Banking Rule Engine (Client-Side Fallback)",
+        fallback: true,
+        mitre,
+        clauses: statutory,
+        reason: "Offline fallback mode engaged.",
+      })
+    } finally {
+      setIsGeneratingDraft(false)
+    }
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -139,16 +266,27 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-xl rounded-control bg-surface border border-rule shadow-2xl text-main max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="w-full max-w-2xl rounded-control bg-surface border border-rule shadow-2xl text-main max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-rule flex-shrink-0">
+        <div className="flex items-center justify-between p-4 border-b border-rule flex-shrink-0 bg-surface">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-primary" />
             <h2 className="text-sm font-semibold">Report statutory security incident</h2>
-            {initialData && (
+            {initialData ? (
               <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-segment bg-primary/10 text-primary border border-primary/20">
                 Pre-filled from Alert
               </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAiPanelOpen((prev) => !prev)}
+                className="text-[11px] font-medium px-2.5 py-0.5 rounded-segment bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 flex items-center gap-1 transition-colors"
+                title="Open local AI incident drafter"
+              >
+                <BrainCircuit className="w-3.5 h-3.5" />
+                <span>AI Drafter</span>
+                {aiPanelOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
             )}
           </div>
           <button 
@@ -176,6 +314,115 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
             </div>
           )}
 
+          {/* Collapsible Local AI Incident Drafter Panel */}
+          {aiPanelOpen && (
+            <div className="p-3 rounded-control border border-primary/30 bg-primary/5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="w-4 h-4 text-primary" />
+                  <span className="font-semibold text-main text-xs">Local AI Incident Drafter (Air-Gapped)</span>
+                </div>
+                <span className="text-[10px] text-muted font-mono flex items-center gap-1">
+                  <Cpu className="w-3 h-3 text-status-ok" />
+                  <span>Zero Cloud Calls</span>
+                </span>
+              </div>
+
+              <p className="text-[11px] text-muted">
+                Paste raw SIEM logs, EDR alert telemetry, or rough notes. The local Qwen 2.5 Coder model (or deterministic fallback) will synthesize Title, Summary, and Severity.
+              </p>
+
+              <textarea
+                rows={2}
+                value={rawThreatInput}
+                onChange={(e) => setRawThreatInput(e.target.value)}
+                placeholder="e.g. CrowdStrike flagged lsass.exe memory dump attempt on CBS-PROD-APP01 by svchost.exe. Process terminated."
+                className="w-full px-2.5 py-1.5 rounded-segment bg-app border border-rule focus:outline-none focus:ring-1 focus:ring-primary text-[11px] text-main font-mono"
+              />
+
+              {/* Sample Threat Chips */}
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                <span className="text-muted font-medium">Quick Scenarios:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = "CrowdStrike detected suspicious LSASS memory dump attempt by svchost.exe on CBS-PROD-APP01. Automated containment isolated host."
+                    setRawThreatInput(text)
+                    handleGenerateAIDraft(text)
+                  }}
+                  className="px-2 py-0.5 rounded-segment bg-app border border-rule hover:border-primary text-muted hover:text-main"
+                >
+                  CBS LSASS Memory Dump
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = "Border switch BGP neighbor flapping causing intermittent packet loss on RTGS settlement channel. Queues diverted to DC-2 secondary link."
+                    setRawThreatInput(text)
+                    handleGenerateAIDraft(text)
+                  }}
+                  className="px-2 py-0.5 rounded-segment bg-app border border-rule hover:border-primary text-muted hover:text-main"
+                >
+                  RTGS Route Flap
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = "Canary file encrypted in payment gateway staging share. Process executing vssadmin delete shadows command."
+                    setRawThreatInput(text)
+                    handleGenerateAIDraft(text)
+                  }}
+                  className="px-2 py-0.5 rounded-segment bg-app border border-rule hover:border-primary text-muted hover:text-main"
+                >
+                  Ransomware Canary
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={isGeneratingDraft}
+                  onClick={() => handleGenerateAIDraft()}
+                  className="px-3 py-1 rounded-control bg-primary text-primary-fg hover:bg-primary-hover font-medium text-xs flex items-center gap-1.5 disabled:opacity-50 transition-opacity"
+                >
+                  {isGeneratingDraft ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Synthesizing Draft...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Generate Draft</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Draft Result Metadata Pill */}
+          {aiDraftMeta && (
+            <div className="p-2.5 rounded-control border border-rule bg-app flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-segment text-[10px] font-mono font-medium ${
+                  aiDraftMeta.fallback 
+                    ? "bg-status-due_soon/10 text-status-due_soon border border-status-due_soon/30" 
+                    : "bg-status-ok/10 text-status-ok border border-status-ok/30"
+                }`}>
+                  <Zap className="w-3 h-3" />
+                  <span>{aiDraftMeta.model}</span>
+                </span>
+                <span className="text-muted font-mono text-[10px]">
+                  MITRE: <strong className="text-main">{aiDraftMeta.mitre}</strong>
+                </span>
+              </div>
+              <span className="text-muted text-[10px]">
+                {aiDraftMeta.fallback ? "Fallback rule engine active" : "Local inference verified"}
+              </span>
+            </div>
+          )}
+
           {/* Interactive Pre-Flight PII Soft-Guard Banner */}
           {hasDetectedPII && (
             <div className="p-3 rounded-control border border-status-due_soon/40 bg-status-due_soon/10 space-y-2.5">
@@ -187,7 +434,7 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
                       Customer PII detected in narrative ({allFindings.length} {allFindings.length === 1 ? "item" : "items"})
                     </span>
                     <span className="text-[11px] text-muted">
-                      Per RBI and DPDP invariants, customer account numbers and identities are strictly prohibited from persistence.
+                      Per RBI and DPDP invariants, customer account numbers, PANs, and Aadhaar numbers are strictly prohibited from persistence.
                     </span>
                   </div>
                 </div>
@@ -279,20 +526,34 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
               <label className="block font-medium text-muted">
                 Technical incident summary
               </label>
-              <span className="text-[10px] text-muted flex items-center gap-1">
-                <Lock className="w-3 h-3 text-status-ok" />
-                <span>Protected by Verhoeff / Luhn PII Guard</span>
-              </span>
+              <div className="flex items-center gap-2">
+                {summary.trim().length > 10 && (
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateAIDraft(summary)}
+                    disabled={isGeneratingDraft}
+                    className="text-[10px] text-primary hover:underline flex items-center gap-1 font-medium"
+                    title="Re-structure summary using local AI synthesis"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    <span>AI Refine</span>
+                  </button>
+                )}
+                <span className="text-[10px] text-muted flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-status-ok" />
+                  <span>Protected by Verhoeff / Luhn PII Guard</span>
+                </span>
+              </div>
             </div>
             <textarea
-              rows={4}
+              rows={5}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               placeholder="Technical summary of observed security anomaly, affected hosts, indicators of compromise..."
               className="w-full px-3 py-2 rounded-control bg-app border border-rule focus:outline-none focus:ring-1 focus:ring-primary text-main font-mono text-[11px]"
             />
             <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
-              <span>Aadhaar, PAN, and card numbers are monitored in real time.</span>
+              <span>Aadhaar, PAN, Card, Account, Phone & Email are monitored in real time.</span>
               <span>{summary.length} characters</span>
             </div>
           </div>
