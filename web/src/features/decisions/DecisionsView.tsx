@@ -17,6 +17,7 @@ import {
   BarChart2,
   Sliders
 } from "lucide-react"
+import { downloadFileAsBlob } from "../../lib/downloadUtil"
 
 export interface DecisionItem {
   id: string
@@ -322,7 +323,11 @@ export const DecisionsView: React.FC<DecisionsViewProps> = ({
   }
 
   const handleDownloadBoardPack = () => {
-    window.open(`/api/v1/governance/board-pack/quarterly/pdf?lang=${lang}`, "_blank")
+    downloadFileAsBlob({
+      url: `/api/v1/governance/board-pack/quarterly/pdf?lang=${lang}`,
+      fallbackFilename: `cyberq-board-pack-${lang}.pdf`,
+      csrfToken,
+    })
   }
 
   // Open FAIR 16,384-iteration Sobol QMC Simulation

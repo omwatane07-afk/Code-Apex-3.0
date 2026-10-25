@@ -1,0 +1,16 @@
+{
+  "include": [
+    "backend/src",
+    "backend/tests",
+    "tests"
+  ],
+  "extraPaths": [
+    "backend/src"
+  ],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none",
+  "reportUnusedImport": "none",
+  "reportGeneralTypeIssues": "warning"
+}

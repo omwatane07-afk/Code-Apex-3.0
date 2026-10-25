@@ -9,10 +9,15 @@ import {
   CheckCircle2, 
   Sliders, 
   Lock,
-  X 
+  X,
+  FileText,
+  Download,
+  Archive,
+  ShieldCheck
 } from "lucide-react"
 import { QueryClient, QueryClientProvider, useMutation, useQueryClient } from "@tanstack/react-query"
 import { IncidentItem } from "./types"
+import { downloadFileAsBlob } from "../../lib/downloadUtil"
 
 interface IncidentDetailProps {
   incident: IncidentItem
@@ -22,6 +27,7 @@ interface IncidentDetailProps {
   userRole?: string
   currentUserId?: string
   csrfToken?: string
+  onRoleChange?: (role: any) => Promise<void> | void
   onSeverityChange?: (incidentId: string, severity: "low" | "medium" | "high" | "critical", reason: string) => Promise<void> | void
   onDeclareMajor?: (incidentId: string, reason: string) => Promise<void> | void
   onApproveClosure?: (incidentId: string, closureNotes: string) => Promise<void> | void
@@ -50,6 +56,7 @@ const IncidentDetailInner: FC<IncidentDetailProps> = ({
   userRole,
   currentUserId,
   csrfToken,
+  onRoleChange,
   onSeverityChange,
   onDeclareMajor,
   onApproveClosure,
@@ -121,6 +128,59 @@ const IncidentDetailInner: FC<IncidentDetailProps> = ({
     "Statutory awareness under DPDP Rule 7 asserted by SOC Analyst. Starts 72-hour reporting clock."
   )
   const [dpdpError, setDpdpError] = useState<string | null>(null)
+
+  // Statutory Reports Generation State
+  const [dpdpAudience, setDpdpAudience] = useState<"internal" | "dpb">("internal")
+  const [downloadStatus, setDownloadStatus] = useState<string | null>(null)
+  const [isDownloading, setIsDownloading] = useState(false)
+
+  const handleDownloadCertIn = async () => {
+    setIsDownloading(true)
+    const incCode = incident.incident_number || incident.id
+    try {
+      await downloadFileAsBlob({
+        url: `/api/v1/incidents/${incident.id}/report/download`,
+        fallbackFilename: `CERT-In_Annexure1_${incCode}.pdf`,
+        csrfToken,
+        onRoleChange,
+        onProgress: setDownloadStatus,
+      })
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const handleDownloadDpdp = async () => {
+    setIsDownloading(true)
+    const incCode = incident.incident_number || incident.id
+    try {
+      await downloadFileAsBlob({
+        url: `/api/v1/incidents/${incident.id}/dpdp-report/download?audience=${dpdpAudience}`,
+        fallbackFilename: `DPDP_Breach_Notification_${incCode}_${dpdpAudience}.pdf`,
+        csrfToken,
+        onRoleChange,
+        onProgress: setDownloadStatus,
+      })
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const handleDownloadBundle = async () => {
+    setIsDownloading(true)
+    const incCode = incident.incident_number || incident.id
+    try {
+      await downloadFileAsBlob({
+        url: `/api/v1/incidents/${incident.id}/reports/bundle-zip`,
+        fallbackFilename: `CYBERQ_Reports_${incCode}.zip`,
+        csrfToken,
+        onRoleChange,
+        onProgress: setDownloadStatus,
+      })
+    } finally {
+      setIsDownloading(false)
+    }
+  }
 
   const triggerDpdpMutation = useMutation({
     mutationFn: async ({ occurredAt, evidence, rationale }: { occurredAt: string; evidence: string; rationale: string }) => {
@@ -427,6 +487,115 @@ const IncidentDetailInner: FC<IncidentDetailProps> = ({
             <span>Auditor view active: Free-text investigative narratives are masked per bank policy.</span>
           </div>
         )}
+      </div>
+
+      {/* Statutory Regulatory Reports (CERT-In Annexure-1 & DPDP Rule 7) */}
+      <div className="border border-rule rounded-control bg-surface p-5 space-y-4">
+        <div className="flex items-center justify-between border-b border-rule pb-2">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-primary" />
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-main">
+              Statutory Regulatory Reports (This Incident)
+            </h2>
+          </div>
+          <button
+            onClick={handleDownloadBundle}
+            disabled={isDownloading}
+            className="px-2.5 py-1 rounded bg-surface hover:bg-app border border-rule text-main text-[11px] font-medium flex items-center gap-1.5 shadow-sm hover:border-primary transition disabled:opacity-50"
+            title="Download both CERT-In and DPDP reports in a single ZIP"
+          >
+            <Archive className="w-3.5 h-3.5 text-primary" />
+            <span>Download Reports Bundle (.ZIP)</span>
+          </button>
+        </div>
+
+        {downloadStatus && (
+          <div className="p-2.5 rounded-control border border-primary/40 bg-primary/10 text-primary text-xs flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            <span>{downloadStatus}</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* CERT-In 6-Hour Incident Report */}
+          <div className="border border-rule rounded-segment p-3.5 bg-app text-xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-main flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-primary" />
+                <span>CERT-In Annexure-1 Report</span>
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/40">
+                6-Hour Clock
+              </span>
+            </div>
+            <p className="text-[11px] text-muted leading-relaxed">
+              Mandatory initial intimation packet under CERT-In Directions 2022 Section 70B. Generates byte-reproducible PDF with HMAC-SHA256 seal.
+            </p>
+            <div className="pt-2 border-t border-rule flex items-center justify-between">
+              <span className="text-[10px] text-muted font-mono">Format: A4 PDF</span>
+              <button
+                onClick={handleDownloadCertIn}
+                disabled={isDownloading}
+                className="px-3 py-1 rounded-control bg-primary text-primary-fg hover:bg-primary-hover text-[11px] font-medium flex items-center gap-1.5 shadow-sm transition disabled:opacity-50"
+              >
+                <Download className="w-3 h-3" />
+                <span>Generate CERT-In PDF</span>
+              </button>
+            </div>
+          </div>
+
+          {/* DPDP Rule 7 Breach Notification */}
+          <div className="border border-rule rounded-segment p-3.5 bg-app text-xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-main flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-status-ok" />
+                <span>DPDP Rule 7 Breach Notice</span>
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-status-ok/10 text-status-ok border border-status-ok/40">
+                72-Hour Timer
+              </span>
+            </div>
+            <p className="text-[11px] text-muted leading-relaxed">
+              Personal Data Breach Notification under DPDP Rules 2025. Dynamically tailored by target audience.
+            </p>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted font-medium">Audience:</span>
+              <button
+                type="button"
+                onClick={() => setDpdpAudience("internal")}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                  dpdpAudience === "internal"
+                    ? "bg-primary text-primary-fg font-bold"
+                    : "bg-surface border border-rule text-muted"
+                }`}
+              >
+                Internal (Sec 1-10)
+              </button>
+              <button
+                type="button"
+                onClick={() => setDpdpAudience("dpb")}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                  dpdpAudience === "dpb"
+                    ? "bg-primary text-primary-fg font-bold"
+                    : "bg-surface border border-rule text-muted"
+                }`}
+              >
+                DPB Authority (Sec 1-6)
+              </button>
+            </div>
+            <div className="pt-2 border-t border-rule flex items-center justify-between">
+              <span className="text-[10px] text-muted font-mono">{dpdpAudience === "internal" ? "Internal Audit" : "Regulator File"}</span>
+              <button
+                onClick={handleDownloadDpdp}
+                disabled={isDownloading}
+                className="px-3 py-1 rounded-control bg-primary text-primary-fg hover:bg-primary-hover text-[11px] font-medium flex items-center gap-1.5 shadow-sm transition disabled:opacity-50"
+              >
+                <Download className="w-3 h-3" />
+                <span>Generate DPDP PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* CISO Executive Controls Card (visible to CISO role) */}

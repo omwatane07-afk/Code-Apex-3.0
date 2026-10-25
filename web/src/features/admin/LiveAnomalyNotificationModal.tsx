@@ -34,21 +34,24 @@ export const LiveAnomalyNotificationModal: FC<LiveAnomalyNotificationModalProps>
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  // Clamp index if alerts array changes
+  const unacknowledgedAlerts = alerts.filter((a) => !a.acknowledged)
+
+  // Clamp index if unacknowledged alerts array changes
   useEffect(() => {
-    if (currentIndex >= alerts.length && alerts.length > 0) {
-      setCurrentIndex(alerts.length - 1)
+    if (currentIndex >= unacknowledgedAlerts.length && unacknowledgedAlerts.length > 0) {
+      setCurrentIndex(unacknowledgedAlerts.length - 1)
     }
-  }, [alerts.length, currentIndex])
+  }, [unacknowledgedAlerts.length, currentIndex])
 
-  if (alerts.length === 0) return null
+  if (unacknowledgedAlerts.length === 0) return null
 
-  const currentAlert = alerts[currentIndex] || alerts[0]
+  const currentAlert = unacknowledgedAlerts[currentIndex] || unacknowledgedAlerts[0]
   const isCritical = currentAlert.severity === "critical"
 
   const handleAcknowledge = () => {
     onAcknowledge(currentAlert.id)
-    if (currentIndex >= alerts.length - 1 && currentIndex > 0) {
+    onDismiss(currentAlert.id)
+    if (currentIndex >= unacknowledgedAlerts.length - 1 && currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1)
     }
   }
@@ -109,9 +112,9 @@ export const LiveAnomalyNotificationModal: FC<LiveAnomalyNotificationModalProps>
             >
               {currentAlert.severity} ANOMALY DETECTED
             </span>
-            {alerts.length > 1 && (
+            {unacknowledgedAlerts.length > 1 && (
               <span className="text-[11px] text-muted font-mono">
-                ({currentIndex + 1} of {alerts.length})
+                ({currentIndex + 1} of {unacknowledgedAlerts.length})
               </span>
             )}
           </div>
@@ -125,7 +128,7 @@ export const LiveAnomalyNotificationModal: FC<LiveAnomalyNotificationModalProps>
             >
               {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5 text-muted/50" />}
             </button>
-            {alerts.length > 1 && (
+            {unacknowledgedAlerts.length > 1 && (
               <button
                 onClick={onDismissAll}
                 className="px-1.5 py-0.5 rounded text-[10px] text-muted hover:text-main hover:bg-white/10 transition-colors"

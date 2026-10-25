@@ -145,17 +145,26 @@ class OllamaLLMClient:
         initial_backoff: float = 1.0,
     ) -> None:
         self.base_url = (base_url or os.getenv("CYBERQ_OLLAMA_URL") or DEFAULT_OLLAMA_BASE_URL).rstrip("/")
-        self.model = OLLAMA_MODEL_NAME
+        self.model = os.getenv("CYBERQ_OLLAMA_MODEL") or OLLAMA_MODEL_NAME
         self.timeout = timeout
         self.max_retries = max_retries
         self.initial_backoff = initial_backoff
 
-    def is_available(self, timeout: float = 1.5) -> bool:
+    def is_available(self, timeout: float = 5.0) -> bool:
         """Quickly probes if the local Ollama daemon is reachable and responding."""
         try:
             with httpx.Client(timeout=timeout) as client:
                 res = client.get(f"{self.base_url}/api/tags")
-                return res.status_code == 200
+                if res.status_code == 200:
+                    data = res.json()
+                    models = [m.get("name", "") for m in data.get("models", [])]
+                    # Check if requested model or a qwen variant is available
+                    has_model = any(
+                        self.model.lower() in m.lower() or "qwen" in m.lower()
+                        for m in models
+                    )
+                    return True if (has_model or len(models) > 0) else False
+                return False
         except Exception:
             return False
 

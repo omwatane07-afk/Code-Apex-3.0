@@ -1,4 +1,5 @@
 import json
+import random
 from datetime import UTC, datetime
 from typing import Any
 
@@ -445,6 +446,83 @@ def unmask_traceability(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     return data
+
+
+BACKEND_SIMULATED_SCENARIOS = [
+    {
+        "title": "UPI Switch API gateway timeout & suspicious callback flood",
+        "summary": "NPCI UPI payment gateway interface reporting >3,400 failed settlement callbacks per minute from unauthorized staging IP range 10.42.18.0/24. Circuit breaker tripped on Core Switch VIP to prevent ledger discrepancy.",
+        "severity": "critical",
+    },
+    {
+        "title": "Unauthorized RMA message staging on SWIFT Alliance Gateway",
+        "summary": "Dual-custody bypass alert triggered on SWIFT Alliance Gateway SAG-02. An unapproved RMA (Relationship Management Application) key exchange message was staged outside treasury operating hours without secondary maker-checker authentication.",
+        "severity": "critical",
+    },
+    {
+        "title": "ATM Switch ISO-8583 message response code tampering",
+        "summary": "Anomalous ISO-8583 Field 39 (Response Code) manipulation observed across 24 terminal endpoints in Western Region. Stand-in processing rules activated; terminal network quarantined by Switch HSM controller.",
+        "severity": "high",
+    },
+    {
+        "title": "Bulk export of customer CIF and masked Aadhaar records via replica DB",
+        "summary": "Database Activity Monitoring (DAM) identified unindexed bulk SELECT query extracting 64,500 customer CIF records from CBS reporting replica. Personal data intimation clock initiated under DPDP Rules 2025.",
+        "severity": "critical",
+    },
+    {
+        "title": "Active Directory Kerberoasting targeting Core Banking database service account",
+        "summary": "CrowdStrike Falcon detected Kerberos TGS-REQ ticket requests with legacy RC4 encryption targeting SPN MSSQLSvc/CBS-DB01.bank.local. Immediate service account ticket revocation enforced.",
+        "severity": "high",
+    },
+    {
+        "title": "Corporate NetBanking login portal obfuscated SQL injection probe",
+        "summary": "High-entropy SQL injection vectors targeting session token verification endpoint /corp/auth/verifyToken detected across 1,200 distributed residential proxies. Cloudflare WAF dynamic rate-limiting applied.",
+        "severity": "medium",
+    },
+    {
+        "title": "BGP route announcement hijack targeting Bank Forex Settlement API",
+        "summary": "External routing telemetry identified unauthorized AS-PATH advertisement for /24 public subnet allocated to Bank Forex Settlement gateway. Flow diverted to offshore autonomous system. Route filtering re-advertised.",
+        "severity": "critical",
+    },
+    {
+        "title": "Ransomware precursor beaconing & PsExec lateral movement on Branch Subnet",
+        "summary": "SentinelOne agent flagged PsExec remote service creation on 14 regional branch workstations originating from loan processing terminal WS-BLR-041. Cobalt Strike beacon payload signature identified and quarantined.",
+        "severity": "high",
+    },
+]
+
+
+@router.post("/simulate-random", response_model=IncidentDetailResponse)
+def simulate_random_incident(
+    request: Request,
+    db: Session = Depends(get_db),
+    audit: AuditService = Depends(get_audit_service),
+    auth_ctx: AuthContext = Depends(require_permission(Action.INCIDENT_CREATE)),
+) -> IncidentDetailResponse:
+    """Dynamically simulates and registers a random banking crisis incident with regulatory obligations."""
+    client_ip = request.client.host if request.client else None
+    request_id = request.headers.get("X-Request-ID")
+    scenario = random.choice(BACKEND_SIMULATED_SCENARIOS)
+
+    incident = service_create_incident(
+        session=db,
+        audit=audit,
+        title=scenario["title"],
+        summary=scenario["summary"],
+        severity=scenario["severity"],
+        actor_id=auth_ctx.user_id,
+        actor_role=auth_ctx.role.value,
+        override_pii=False,
+        override_pii_reason="",
+        client_ip=client_ip,
+        request_id=request_id,
+    )
+    db.commit()
+    db.refresh(incident)
+
+    data = _incident_to_dict(incident)
+    masked = mask_incident_for_role(data, auth_ctx.role.value)
+    return IncidentDetailResponse(**masked)
 
 
 @router.post("", response_model=IncidentDetailResponse, status_code=status.HTTP_201_CREATED)

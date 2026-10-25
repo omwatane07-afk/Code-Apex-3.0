@@ -1,0 +1,17 @@
+project-includes = [
+    "backend/src",
+    "backend/tests",
+    "tests",
+]
+search-path = [
+    "backend/src",
+    ".",
+    "tests",
+]
+python-version = "3.12.0"
+infer-with-first-use = false
+
+[errors]
+missing-import = "ignore"
+missing-source-for-stubs = "ignore"
+missing-source = "ignore"

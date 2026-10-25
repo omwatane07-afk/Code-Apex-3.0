@@ -233,6 +233,7 @@ def test_certin_pdf_cryptographic_audit_sealing(isolated_db_session: Session) ->
     assert event.entity_type == "statutory_certin_pdf"
     assert event.actor_id == "ciso-user-01"
     assert event.actor_role == "ciso"
+    assert event.after_state is not None
     assert event.after_state["pdf_sha256"] == pdf_hash
     assert event.after_state["verification_code"] == verification_code
     assert event.after_state["incident_number"] == "INC-2026-0040"
@@ -335,3 +336,77 @@ def test_download_nonexistent_incident_returns_404(isolated_db_session: Session)
         headers=ciso_headers,
     )
     assert res.status_code == 404
+
+
+def test_batch_zip_download_contains_separate_reports_for_each_incident(isolated_db_session: Session) -> None:
+    """Verifies that batch zip generates separate CERT-In and DPDP reports for every incident."""
+    import io
+    import json
+    import zipfile
+
+    client = TestClient(app)
+    _create_test_incident(isolated_db_session, "INC-2026-0301")
+    _create_test_incident(isolated_db_session, "INC-2026-0302")
+
+    ciso_headers = _login(client, Role.CISO, "ciso_batch_tester")
+
+    res = client.get("/api/v1/incidents/reports/batch-zip", headers=ciso_headers)
+    assert res.status_code == 200, res.text
+    assert res.headers["content-type"] == "application/zip"
+    assert "attachment" in res.headers.get("content-disposition", "")
+
+    with zipfile.ZipFile(io.BytesIO(res.content), "r") as zf:
+        namelist = zf.namelist()
+        assert "manifest.json" in namelist
+        manifest = json.loads(zf.read("manifest.json").decode("utf-8"))
+        assert manifest["total_incidents"] >= 2
+
+        # Check separate reports exist for inc1
+        assert any("CERT-In" in name and "INC-2026-0301" in name for name in namelist)
+        assert any("DPDP" in name and "INC-2026-0301" in name and "internal" in name for name in namelist)
+        assert any("DPDP" in name and "INC-2026-0301" in name and "dpb" in name for name in namelist)
+
+        # Check separate reports exist for inc2
+        assert any("CERT-In" in name and "INC-2026-0302" in name for name in namelist)
+        assert any("DPDP" in name and "INC-2026-0302" in name and "internal" in name for name in namelist)
+        assert any("DPDP" in name and "INC-2026-0302" in name and "dpb" in name for name in namelist)
+
+
+def test_single_incident_bundle_zip(isolated_db_session: Session) -> None:
+    """Verifies generating separate CERT-In and DPDP reports for a single incident in a bundle ZIP."""
+    import io
+    import zipfile
+
+    client = TestClient(app)
+    incident = _create_test_incident(isolated_db_session, "INC-2026-0303")
+    ciso_headers = _login(client, Role.CISO, "ciso_single_tester")
+
+    res = client.get(f"/api/v1/incidents/{incident.id}/reports/bundle-zip", headers=ciso_headers)
+    assert res.status_code == 200, res.text
+    assert res.headers["content-type"] == "application/zip"
+
+    with zipfile.ZipFile(io.BytesIO(res.content), "r") as zf:
+        namelist = zf.namelist()
+        assert "manifest.json" in namelist
+        assert any("CERT-In" in name for name in namelist)
+        assert any("DPDP" in name and "internal" in name for name in namelist)
+        assert any("DPDP" in name and "dpb" in name for name in namelist)
+
+
+def test_statutory_reports_incidents_summary(isolated_db_session: Session) -> None:
+    """Verifies incident summary endpoint returns download URLs for both reports."""
+    client = TestClient(app)
+    incident = _create_test_incident(isolated_db_session, "INC-2026-0304")
+    ciso_headers = _login(client, Role.CISO, "ciso_summary_tester")
+
+    res = client.get("/api/v1/incidents/reports/incidents-summary", headers=ciso_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, list)
+    target = next((item for item in data if item["id"] == incident.id), None)
+    assert target is not None
+    assert "certin_download_url" in target
+    assert "dpdp_internal_download_url" in target
+    assert "dpdp_dpb_download_url" in target
+    assert "bundle_zip_url" in target
+

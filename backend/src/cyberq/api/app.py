@@ -36,6 +36,14 @@ logger = structlog.get_logger("cyberq.api")
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     init_db()
+    try:
+        from cyberq.core.database import SessionLocal
+        from cyberq.core.demo_seed import seed_demo_data
+
+        with SessionLocal() as session:
+            seed_demo_data(session)
+    except Exception as e:
+        logger.warning("seed_demo_data_skipped", error=str(e))
     logger.info("cyberq_startup", env=settings.ENV.value, version=settings.APP_VERSION)
     yield
     logger.info("cyberq_shutdown")

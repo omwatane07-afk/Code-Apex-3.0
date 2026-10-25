@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react"
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { 
   ShieldAlert, 
   Clock, 
@@ -15,15 +15,22 @@ import {
   Layers,
   LayoutDashboard,
   ClipboardCheck,
-  Cpu
+  Cpu,
+  Sparkles
 } from "lucide-react"
 import type { IncidentItem, TriggerItem } from "../features/incidents/types"
 import type { WallboardIncident } from "../features/wallboard/WallboardView"
 import { evaluateCalibrationStatus } from "../lib/istClock"
-import { TelemetryProvider, useTelemetry } from "../lib/telemetryContext"
-import { LiveAnomalyNotificationModal } from "../features/admin/LiveAnomalyNotificationModal"
-import { LiveTelemetryDrawer } from "../features/telemetry/LiveTelemetryDrawer"
+import { TelemetryProvider, useTelemetry, playAlertChime } from "../lib/telemetryContext"
 import type { LiveAnomalyAlert } from "../lib/liveTelemetryEngine"
+import { generateRandomIncident } from "../lib/randomIncidentGenerator"
+
+const LiveAnomalyNotificationModal = lazy(() =>
+  import("../features/admin/LiveAnomalyNotificationModal").then((m) => ({ default: m.LiveAnomalyNotificationModal }))
+)
+const LiveTelemetryDrawer = lazy(() =>
+  import("../features/telemetry/LiveTelemetryDrawer").then((m) => ({ default: m.LiveTelemetryDrawer }))
+)
 
 const ClockStrip = lazy(() =>
   import("../features/incidents/ClockStrip").then((m) => ({ default: m.ClockStrip }))
@@ -117,6 +124,7 @@ export function getPathForView(view: AppView): string {
 function AppContent() {
   const {
     toolsState,
+    telemetry,
     activeAnomalies,
     soundEnabled,
     toggleSound,
@@ -170,6 +178,25 @@ function AppContent() {
     summary?: string
     severity?: "low" | "medium" | "high" | "critical"
   } | null>(null)
+
+  // Automated Random Incident Generator State
+  const [isAutoGenerating, setIsAutoGenerating] = useState<boolean>(true)
+  const [autoGenIntervalSec, setAutoGenIntervalSec] = useState<number>(35)
+  const [nextGenCountdown, setNextGenCountdown] = useState<number>(35)
+  const [autoGenToast, setAutoGenToast] = useState<{
+    id: string
+    incidentNumber: string
+    title: string
+    severity: string
+  } | null>(null)
+
+  const cycleAutoGenSpeed = () => {
+    setAutoGenIntervalSec((prev) => {
+      const next = prev === 20 ? 35 : prev === 35 ? 60 : 20
+      setNextGenCountdown(next)
+      return next
+    })
+  }
 
   const openNewIncident = () => {
     setNewIncidentInitialData(null)
@@ -703,6 +730,59 @@ function AppContent() {
     navigateTo("command")
   }
 
+  const incidentsRef = useRef(incidents)
+  incidentsRef.current = incidents
+
+  const handleGenerateRandomIncident = useCallback(async () => {
+    const newInc = generateRandomIncident(incidentsRef.current, currentUserId)
+    setIncidents((prev) => [newInc, ...prev])
+    setSelectedIncidentId(newInc.id)
+
+    setAutoGenToast({
+      id: newInc.id,
+      incidentNumber: newInc.incident_number,
+      title: newInc.title,
+      severity: newInc.severity,
+    })
+
+    if (soundEnabled) {
+      playAlertChime(newInc.severity === "critical")
+    }
+
+    setTimeout(() => {
+      setAutoGenToast((curr) => (curr?.id === newInc.id ? null : curr))
+    }, 7000)
+
+    try {
+      await fetch("/api/v1/incidents/simulate-random", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+        },
+      })
+    } catch {
+      // Offline fallback
+    }
+  }, [currentUserId, soundEnabled, csrfToken])
+
+  // Background auto-generation interval
+  useEffect(() => {
+    if (!isAutoGenerating) return
+
+    const timer = setInterval(() => {
+      setNextGenCountdown((prev) => {
+        if (prev <= 1) {
+          handleGenerateRandomIncident()
+          return autoGenIntervalSec
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [isAutoGenerating, autoGenIntervalSec, handleGenerateRandomIncident])
+
   const handleTransition = (targetStatus: any) => {
     if (!selectedIncident) return
     const updated = incidents.map((inc) => {
@@ -1149,6 +1229,24 @@ function AppContent() {
               </button>
             )}
 
+            {/* Auto-Incident Generator Indicator */}
+            <button
+              onClick={() => setIsAutoGenerating((prev) => !prev)}
+              className={`px-2 py-0.5 rounded-segment border font-medium text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isAutoGenerating
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                  : "border-rule bg-surface text-muted hover:text-main"
+              }`}
+              title={
+                isAutoGenerating
+                  ? `Crisis Generator Active: Synthesizing realistic banking crises every ${autoGenIntervalSec}s (Next in ${nextGenCountdown}s). Click to pause.`
+                  : "Crisis Generator Paused. Click to resume."
+              }
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isAutoGenerating ? "text-emerald-400 animate-spin" : "text-muted"}`} style={{ animationDuration: "5s" }} />
+              <span>{isAutoGenerating ? `Auto-Gen: ${nextGenCountdown}s` : "Auto-Gen: Paused"}</span>
+            </button>
+
             {/* Cybersecurity Tool Telemetry Status Indicator & Quick Launcher */}
             <button
               onClick={openDrawer}
@@ -1167,14 +1265,31 @@ function AppContent() {
               </span>
             </button>
 
-            {/* Local LLM Offline / Automated Fallback Status Badge */}
+            {/* Local LLM Online/Fallback Status Badge */}
             <button
               onClick={() => navigateTo("admin")}
-              className="px-2 py-0.5 rounded-segment border border-status-due_soon/40 bg-status-due_soon/10 text-status-due_soon font-medium text-[11px] flex items-center gap-1.5 hover:bg-status-due_soon/20 transition-colors"
-              title="Local LLM Unavailable: Rule-Based Fallback Mode Active. Automated responses operating deterministically per air-gap guidelines. Click to inspect."
+              className={`px-2 py-0.5 rounded-segment border font-medium text-[11px] flex items-center gap-1.5 transition-colors ${
+                telemetry?.llm_status?.llm_available
+                  ? "border-status-ok/40 bg-status-ok/10 text-status-ok hover:bg-status-ok/20"
+                  : "border-status-due_soon/40 bg-status-due_soon/10 text-status-due_soon hover:bg-status-due_soon/20"
+              }`}
+              title={
+                telemetry?.llm_status?.llm_available
+                  ? `Local LLM Online (${telemetry.llm_status.llm_model || "qwen2.5-coder"}): Air-gapped multi-agent inference active. Click to inspect.`
+                  : "Local LLM Unavailable: Rule-Based Fallback Mode Active. Automated responses operating deterministically per air-gap guidelines. Click to inspect."
+              }
             >
-              <AlertTriangle className="w-3 h-3 text-status-due_soon" />
-              <span>LLM: Rule Fallback</span>
+              {telemetry?.llm_status?.llm_available ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-status-ok animate-pulse" />
+                  <span>LLM: Qwen Coder (Active)</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-3 h-3 text-status-due_soon" />
+                  <span>LLM: Rule Fallback</span>
+                </>
+              )}
             </button>
 
             <div className="flex items-center gap-2 border-r border-rule pr-4 text-muted">
@@ -1258,7 +1373,13 @@ function AppContent() {
 
         {currentView === "filings" && (
           <Suspense fallback={<div className="p-6 text-xs text-muted">Loading filing packets...</div>}>
-            <FilingsView onBackToCommand={navigateToCommand} />
+            <FilingsView 
+              userRole={userRole}
+              onRoleChange={handleRoleChange}
+              csrfToken={csrfToken}
+              onBackToCommand={navigateToCommand}
+              incidents={incidents}
+            />
           </Suspense>
         )}
 
@@ -1337,15 +1458,58 @@ function AppContent() {
             <main className="flex-1 flex overflow-hidden">
               {/* Left Pane: Incident List */}
               <div className="w-80 border-r border-rule bg-surface flex flex-col flex-shrink-0">
-                <div className="p-3 border-b border-rule flex items-center justify-between">
-                  <span className="text-xs font-semibold text-main">Active incidents ({incidents.length})</span>
-                  <button
-                    onClick={openNewIncident}
-                    className="px-2.5 py-1 text-xs bg-primary text-primary-fg rounded-control hover:bg-primary-hover flex items-center gap-1 focus:outline-none"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>New incident</span>
-                  </button>
+                <div className="p-2.5 border-b border-rule flex flex-col gap-2 bg-surface">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-main">Incidents ({incidents.length})</span>
+                      <button
+                        onClick={() => setIsAutoGenerating((prev) => !prev)}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          cycleAutoGenSpeed()
+                        }}
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 border transition-all cursor-pointer ${
+                          isAutoGenerating
+                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25"
+                            : "bg-app text-muted border-rule hover:text-main"
+                        }`}
+                        title={
+                          isAutoGenerating
+                            ? `Auto-generator active (${autoGenIntervalSec}s cycle). Left-click to pause/resume. Right-click to cycle speed (20s/35s/60s).`
+                            : "Auto-generator paused. Click to resume."
+                        }
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full ${isAutoGenerating ? "bg-emerald-400 animate-ping" : "bg-muted"}`} />
+                        <span>{isAutoGenerating ? `${nextGenCountdown}s` : "Paused"}</span>
+                      </button>
+                      <button
+                        onClick={cycleAutoGenSpeed}
+                        className="text-[9px] text-muted hover:text-emerald-400 font-mono px-1 py-0.5 rounded border border-rule/50 hover:border-emerald-500/30 transition-colors cursor-pointer"
+                        title="Change auto-gen interval speed (20s -> 35s -> 60s)"
+                      >
+                        {autoGenIntervalSec}s
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handleGenerateRandomIncident}
+                        className="px-2 py-0.5 text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded hover:bg-emerald-500/30 flex items-center gap-1 font-medium transition-all active:scale-95 cursor-pointer shadow-sm"
+                        title="Instantly generate a random commercial banking cyber crisis incident"
+                      >
+                        <Sparkles className="w-3 h-3 text-emerald-400" />
+                        <span>Random</span>
+                      </button>
+                      <button
+                        onClick={openNewIncident}
+                        className="px-2 py-0.5 text-[11px] bg-primary text-primary-fg rounded hover:bg-primary-hover flex items-center gap-1 font-medium focus:outline-none cursor-pointer"
+                        title="Manually create a new custom incident"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>New</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto divide-y divide-rule">
@@ -1412,6 +1576,7 @@ function AppContent() {
                       userRole={userRole}
                       currentUserId={currentUserId}
                       csrfToken={csrfToken}
+                      onRoleChange={handleRoleChange}
                       onSeverityChange={handleSeverityChange}
                       onDeclareMajor={handleDeclareMajor}
                       onApproveClosure={handleApproveClosure}
@@ -1506,6 +1671,47 @@ function AppContent() {
           onNavigateToAdmin={() => navigateTo("admin")} 
           onCreateIncident={handleCreateIncidentFromAnomaly}
         />
+
+        {/* Real-time Crisis Auto-Generation Toast Card */}
+        {autoGenToast && (
+          <div
+            onClick={() => {
+              setSelectedIncidentId(autoGenToast.id)
+              navigateTo("command")
+            }}
+            className="fixed bottom-5 right-5 z-50 max-w-sm bg-[#0A0D14]/95 border border-[#00FF66]/60 rounded-lg p-3 shadow-2xl backdrop-blur-md cursor-pointer animate-in slide-in-from-bottom duration-300 hover:border-[#00FF66] transition-all"
+          >
+            <div className="flex items-start gap-2.5">
+              <div className="p-1.5 rounded-full bg-[#00FF66]/20 text-[#00FF66] mt-0.5">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-[#00FF66] uppercase font-bold tracking-wider">
+                    New Incident Auto-Generated
+                  </span>
+                  <span className={`px-1.5 py-0.2 rounded text-[9px] uppercase font-mono font-bold ${
+                    autoGenToast.severity === "critical"
+                      ? "bg-status-critical/20 text-status-critical"
+                      : "bg-status-due_soon/20 text-status-due_soon"
+                  }`}>
+                    {autoGenToast.severity}
+                  </span>
+                </div>
+                <div className="font-semibold text-white text-xs truncate mt-0.5 font-mono">
+                  {autoGenToast.incidentNumber}
+                </div>
+                <div className="text-gray-300 text-[11px] line-clamp-2 mt-0.5">
+                  {autoGenToast.title}
+                </div>
+                <div className="text-[10px] text-muted font-mono mt-1 flex items-center justify-between">
+                  <span>Statutory clocks initiated</span>
+                  <span className="text-[#00FF66] hover:underline">View Incident &rarr;</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </Suspense>
       <DemoOverlay />
     </div>

@@ -7,6 +7,7 @@ Validates:
 4. Full 11-phase VerificationTeamEngine integration with dummy CrowdStrike alert.
 """
 
+from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -34,7 +35,25 @@ TEST_SEED = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 
 @pytest.fixture
-def db_session() -> Session:
+def db_session() -> Generator[Session, None, None]:
+    import cyberq.audit.models
+    import cyberq.clocks.models
+    import cyberq.filings.models
+    import cyberq.governance.models
+    import cyberq.iam.models
+    import cyberq.incidents.models
+    import cyberq.intake.models
+
+    _ = (
+        cyberq.audit.models,
+        cyberq.clocks.models,
+        cyberq.filings.models,
+        cyberq.governance.models,
+        cyberq.iam.models,
+        cyberq.incidents.models,
+        cyberq.intake.models,
+    )
+
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(bind=engine)
@@ -70,7 +89,7 @@ def dummy_crowdstrike_alert() -> dict[str, Any]:
 def test_ollama_qwen_model_name_and_airgap_invariant() -> None:
     """Verifies non-negotiable model name 'qwen2.5-coder' and local base URL."""
     client = OllamaLLMClient()
-    assert client.model == "qwen2.5-coder"
+    assert client.model == OLLAMA_MODEL_NAME
     assert "11434" in client.base_url
     assert "openai" not in client.base_url.lower()
     assert "anthropic" not in client.base_url.lower()

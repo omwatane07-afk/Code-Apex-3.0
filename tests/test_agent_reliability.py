@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Any
 
@@ -318,7 +319,25 @@ SYNTHETIC_BENCHMARK_SCENARIOS: list[dict[str, Any]] = [
 
 
 @pytest.fixture
-def db_session() -> Session:
+def db_session() -> Generator[Session, None, None]:
+    import cyberq.audit.models
+    import cyberq.clocks.models
+    import cyberq.filings.models
+    import cyberq.governance.models
+    import cyberq.iam.models
+    import cyberq.incidents.models
+    import cyberq.intake.models
+
+    _ = (
+        cyberq.audit.models,
+        cyberq.clocks.models,
+        cyberq.filings.models,
+        cyberq.governance.models,
+        cyberq.iam.models,
+        cyberq.incidents.models,
+        cyberq.intake.models,
+    )
+
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(bind=engine)

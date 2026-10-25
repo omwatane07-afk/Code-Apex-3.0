@@ -265,6 +265,7 @@ def test_dpdp_pdf_generation_bytes_and_sealing(isolated_db_session: Session) -> 
         .where(AuditEvent.action == "report:dpdp_sealed")
     )
     assert audit_event is not None
+    assert audit_event.after_state is not None
     assert audit_event.after_state["verification_code"] == verification_code
     assert audit_event.after_state["packet_hash"] == pdf_sha256
     assert audit_event.after_state["target_audience"] == "internal"

@@ -12,8 +12,12 @@ import {
   ChevronDown,
   Plus,
 } from "lucide-react"
-import { useTelemetry } from "../../lib/telemetryContext"
-import { ANOMALY_SCENARIOS, type LiveAnomalyAlert } from "../../lib/liveTelemetryEngine"
+import { 
+  useTelemetry,
+  ANOMALY_SCENARIOS, 
+  type LiveAnomalyAlert, 
+  type ToolTelemetryHealth 
+} from "../../lib"
 
 interface LiveTelemetryDrawerProps {
   onNavigateToAdmin?: () => void
@@ -34,14 +38,15 @@ export const LiveTelemetryDrawer: React.FC<LiveTelemetryDrawerProps> = ({ onNavi
     toggleSound,
     triggerAnomaly,
     acknowledgeAnomaly,
+    dismissAnomaly,
   } = useTelemetry()
 
   const [showScenarioMenu, setShowScenarioMenu] = useState(false)
 
   if (!isDrawerOpen) return null
 
-  const totalEps = toolsState.reduce((acc, t) => acc + t.metrics.events_per_minute, 0)
-  const criticalCount = activeAnomalies.filter((a) => a.severity === "critical").length
+  const totalEps = toolsState.reduce((acc: number, t: ToolTelemetryHealth) => acc + t.metrics.events_per_minute, 0)
+  const criticalCount = activeAnomalies.filter((a: LiveAnomalyAlert) => a.severity === "critical").length
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
@@ -174,7 +179,7 @@ export const LiveTelemetryDrawer: React.FC<LiveTelemetryDrawerProps> = ({ onNavi
                       Inject Specific Threat Scenario
                     </div>
                     <div className="max-h-60 overflow-y-auto py-1">
-                      {ANOMALY_SCENARIOS.map((sc, idx) => (
+                      {ANOMALY_SCENARIOS.map((sc: LiveAnomalyAlert, idx: number) => (
                         <button
                           key={sc.tool_id + idx}
                           onClick={() => {
@@ -215,7 +220,7 @@ export const LiveTelemetryDrawer: React.FC<LiveTelemetryDrawerProps> = ({ onNavi
                 </span>
                 <span className="text-[10px] font-mono text-status-critical">Automated Containment Active</span>
               </div>
-              {activeAnomalies.map((anom) => (
+              {activeAnomalies.map((anom: LiveAnomalyAlert) => (
                 <div
                   key={anom.id}
                   className="bg-black/30 p-2 rounded border border-status-critical/20 flex items-center justify-between text-xs"
@@ -242,7 +247,10 @@ export const LiveTelemetryDrawer: React.FC<LiveTelemetryDrawerProps> = ({ onNavi
                       </button>
                     )}
                     <button
-                      onClick={() => acknowledgeAnomaly(anom.id)}
+                      onClick={() => {
+                        acknowledgeAnomaly(anom.id)
+                        dismissAnomaly(anom.id)
+                      }}
                       className="px-2.5 py-1 rounded-segment bg-status-critical text-white text-[10px] font-semibold hover:bg-status-critical/80 transition-colors cursor-pointer"
                     >
                       Acknowledge
@@ -259,14 +267,14 @@ export const LiveTelemetryDrawer: React.FC<LiveTelemetryDrawerProps> = ({ onNavi
           <div className="flex items-center justify-between text-xs text-muted pb-1">
             <span className="font-medium text-main">Cybersecurity Ecosystem ({toolsState.length} Tools)</span>
             <span className="text-[11px]">
-              {toolsState.filter((t) => t.health === "HEALTHY").length} Healthy |{" "}
-              {toolsState.filter((t) => t.health === "WARNING").length} Warning |{" "}
-              {toolsState.filter((t) => t.health === "DEGRADED").length} Degraded
+              {toolsState.filter((t: ToolTelemetryHealth) => t.health === "HEALTHY").length} Healthy |{" "}
+              {toolsState.filter((t: ToolTelemetryHealth) => t.health === "WARNING").length} Warning |{" "}
+              {toolsState.filter((t: ToolTelemetryHealth) => t.health === "DEGRADED").length} Degraded
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {toolsState.map((tool) => {
+            {toolsState.map((tool: ToolTelemetryHealth) => {
               const isAnomalous = !!tool.active_anomaly
               const isDegraded = tool.health === "DEGRADED"
               const isWarning = tool.health === "WARNING"

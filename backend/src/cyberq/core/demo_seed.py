@@ -362,12 +362,184 @@ def seed_demo_crisis_data(
         )
         session.add(obl_mssp)
 
+    # Incident 4: Aadhaar Vault & CIF Replica DB Exfiltration Attempt via Bastion Host
+    inc4 = session.scalar(select(Incident).where(Incident.incident_number == "INC-2026-0004"))
+    if not inc4:
+        inc4 = Incident(
+            id=str(uuid.uuid4()),
+            incident_number="INC-2026-0004",
+            title="Aadhaar Vault & CIF Replica DB Exfiltration Attempt via Compromised Admin Bastion",
+            summary="Anomalous SQL queries dumping encrypted Aadhaar reference keys and CIF metadata detected via DAM sensor on replica cluster",
+            severity="critical",
+            status="investigating",
+            is_major=True,
+            major_declared_at=now - timedelta(hours=4),
+            major_declared_by_id=ciso.id,
+            created_at=now - timedelta(hours=5),
+            created_by_id=analyst.id,
+        )
+        session.add(inc4)
+        session.flush()
+
+        trig4_aware = IncidentTrigger(
+            incident_id=inc4.id,
+            trigger_type=StatutoryTriggerType.AWARE.value,
+            occurred_at=now - timedelta(hours=4, minutes=45),
+            recorded_at=now - timedelta(hours=4, minutes=45),
+            evidence_summary="Database Activity Monitor intercepted unapproved SELECT * on aadhaar_vault_tbl from jumpbox",
+            rationale="Statutory notice threshold reached under DPDP Rule 7 & CERT-In directions",
+            asserted_by_id=analyst.id,
+        )
+        session.add(trig4_aware)
+
+        obl4_dpdp = ObligationInstance(
+            incident_id=inc4.id,
+            pack_id="dpdp_rules_2025",
+            regulator="DPDP",
+            status="running",
+            deadline_at=now + timedelta(hours=67, minutes=15),
+            active_deadline_at=now + timedelta(hours=67, minutes=15),
+            next_due_at=now + timedelta(hours=67, minutes=15),
+            escalation_level=0,
+            applicability_status="applicable",
+        )
+        obl4_certin = ObligationInstance(
+            incident_id=inc4.id,
+            pack_id="certin_directions_2022",
+            regulator="CERT-In",
+            status="running",
+            deadline_at=now + timedelta(hours=1, minutes=15),
+            active_deadline_at=now + timedelta(hours=1, minutes=15),
+            next_due_at=now + timedelta(hours=1, minutes=15),
+            escalation_level=0,
+            applicability_status="applicable",
+        )
+        session.add_all([obl4_dpdp, obl4_certin])
+
+    # Incident 5: Unauthorized RMA Message Key Staging on SWIFT Alliance Gateway Interface
+    inc5 = session.scalar(select(Incident).where(Incident.incident_number == "INC-2026-0005"))
+    if not inc5:
+        inc5 = Incident(
+            id=str(uuid.uuid4()),
+            incident_number="INC-2026-0005",
+            title="Unauthorized RMA Message Key Staging on SWIFT Alliance Gateway Interface",
+            summary="Unauthorized staging of bilateral relationship management (RMA) authorizations for correspondent banking routes",
+            severity="critical",
+            status="triaged",
+            is_major=False,
+            created_at=now - timedelta(hours=8),
+            created_by_id=analyst.id,
+        )
+        session.add(inc5)
+        session.flush()
+
+        trig5 = IncidentTrigger(
+            incident_id=inc5.id,
+            trigger_type=StatutoryTriggerType.NOTICED.value,
+            occurred_at=now - timedelta(hours=7, minutes=50),
+            recorded_at=now - timedelta(hours=7, minutes=50),
+            evidence_summary="SWIFT Security Controls Framework (CSCF v2025) alert for unexpected RMA record creation",
+            rationale="Immediate CERT-In 6h mandatory notification trigger",
+            asserted_by_id=analyst.id,
+        )
+        session.add(trig5)
+
+        obl5_certin = ObligationInstance(
+            incident_id=inc5.id,
+            pack_id="certin_directions_2022",
+            regulator="CERT-In",
+            status="running",
+            deadline_at=now - timedelta(hours=1, minutes=50),
+            active_deadline_at=now - timedelta(hours=1, minutes=50),
+            next_due_at=now - timedelta(hours=1, minutes=50),
+            escalation_level=1,
+            applicability_status="applicable",
+        )
+        session.add(obl5_certin)
+
+    # Incident 6: ATM Switch ISO-8583 Response Code Manipulation on Cash Dispense Route
+    inc6 = session.scalar(select(Incident).where(Incident.incident_number == "INC-2026-0006"))
+    if not inc6:
+        inc6 = Incident(
+            id=str(uuid.uuid4()),
+            incident_number="INC-2026-0006",
+            title="ATM Switch ISO-8583 Message Response Code Manipulation on Cash Dispense Route",
+            summary="Man-in-the-middle packet injection overriding RC 05 (Decline) to RC 00 (Approve) across regional ATM controller subnet",
+            severity="high",
+            status="mitigated",
+            is_major=False,
+            created_at=now - timedelta(hours=12),
+            created_by_id=analyst.id,
+        )
+        session.add(inc6)
+        session.flush()
+
+        obl6_certin = ObligationInstance(
+            incident_id=inc6.id,
+            pack_id="certin_directions_2022",
+            regulator="CERT-In",
+            status="completed",
+            deadline_at=now - timedelta(hours=6),
+            active_deadline_at=now - timedelta(hours=6),
+            next_due_at=now - timedelta(hours=6),
+            escalation_level=0,
+            applicability_status="applicable",
+        )
+        session.add(obl6_certin)
+
+    # Incident 7: Distributed Denial of Service (DDoS) on Corporate Internet Banking API Gateway
+    inc7 = session.scalar(select(Incident).where(Incident.incident_number == "INC-2026-0007"))
+    if not inc7:
+        inc7 = Incident(
+            id=str(uuid.uuid4()),
+            incident_number="INC-2026-0007",
+            title="Distributed Denial of Service (DDoS) on Corporate Internet Banking API Gateway",
+            summary="Volumetric SYN flood and HTTP request exhaustion exceeding 45 Gbps mitigating via Scrubbing Center failover",
+            severity="medium",
+            status="mitigated",
+            is_major=False,
+            created_at=now - timedelta(hours=20),
+            created_by_id=analyst.id,
+        )
+        session.add(inc7)
+        session.flush()
+
+    # Incident 8: Mobile Banking OAuth Token Forgery via Expired Certificate Revocation Bypass
+    inc8 = session.scalar(select(Incident).where(Incident.incident_number == "INC-2026-0008"))
+    if not inc8:
+        inc8 = Incident(
+            id=str(uuid.uuid4()),
+            incident_number="INC-2026-0008",
+            title="Mobile Banking OAuth Token Forgery via Expired Certificate Revocation Bypass",
+            summary="Client side app pinned certificate CRL validation bypass resulting in forged session tokens",
+            severity="high",
+            status="triaged",
+            is_major=False,
+            created_at=now - timedelta(hours=24),
+            created_by_id=analyst.id,
+        )
+        session.add(inc8)
+        session.flush()
+
+        obl8_certin = ObligationInstance(
+            incident_id=inc8.id,
+            pack_id="certin_directions_2022",
+            regulator="CERT-In",
+            status="running",
+            deadline_at=now + timedelta(hours=4),
+            active_deadline_at=now + timedelta(hours=4),
+            next_due_at=now + timedelta(hours=4),
+            escalation_level=0,
+            applicability_status="applicable",
+        )
+        session.add(obl8_certin)
+
     session.commit()
 
     return {
         "status": "SEEDED_SUCCESSFULLY",
         "tools_registered": len(SAMPLE_22_TOOLS),
-        "incidents_seeded": 3,
+        "incidents_seeded": 8,
         "exceptions_active": 2,
         "decisions_active": 1,
         "seeded_at": now.isoformat(),
