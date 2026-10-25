@@ -33,6 +33,7 @@ interface NewIncidentModalProps {
     summary?: string
     severity?: string
   } | null
+  csrfToken?: string
 }
 
 interface AIDraftMeta {
@@ -47,7 +48,8 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
   isOpen, 
   onClose, 
   onSubmit,
-  initialData 
+  initialData,
+  csrfToken
 }) => {
   const [title, setTitle] = useState(initialData?.title || "")
   const [summary, setSummary] = useState(initialData?.summary || "")
@@ -64,6 +66,8 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [rawThreatInput, setRawThreatInput] = useState("")
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
+  const [isRefiningSummary, setIsRefiningSummary] = useState(false)
+  const [refineNotice, setRefineNotice] = useState<string | null>(null)
   const [aiDraftMeta, setAiDraftMeta] = useState<AIDraftMeta | null>(null)
 
   // Sync state whenever modal opens or initialData changes
@@ -85,6 +89,7 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
       setOverrideReason("")
       setRawThreatInput("")
       setAiDraftMeta(null)
+      setRefineNotice(null)
     }
   }, [isOpen, initialData])
 
@@ -116,6 +121,7 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
 
   // AI Drafting & Synthesis Handler
   const handleGenerateAIDraft = async (overrideInput?: string) => {
+    const isRefining = !!overrideInput && overrideInput === summary
     const textToDraft = overrideInput || rawThreatInput || summary
     if (!textToDraft || textToDraft.trim().length < 5) {
       setError("Please provide at least 5 characters of threat notes or raw telemetry for AI drafting.")
@@ -123,15 +129,30 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
     }
 
     setError(null)
-    setIsGeneratingDraft(true)
+    if (isRefining) {
+      setIsRefiningSummary(true)
+    } else {
+      setIsGeneratingDraft(true)
+    }
 
     // Pre-flight client scrub: ensure no customer PII leaves browser
     const sanitizedInput = redactPII(textToDraft)
 
+    // 12-second client-side safety abort in case local Ollama is cold or lagging
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 12000)
+
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (csrfToken) {
+        headers["X-CSRF-Token"] = csrfToken
+      }
+
       const response = await fetch("/api/v1/incidents/ai-draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
+        credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({
           raw_input: sanitizedInput,
           source_tool: "SOC Console",
@@ -139,9 +160,18 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
         }),
       })
 
+      clearTimeout(timeoutId)
+
       if (response.ok) {
         const data = await response.json()
-        setTitle(data.suggested_title)
+        if (isRefining) {
+          // Keep existing non-empty title when refining summary
+          if (!title || title.trim().length < 5) {
+            setTitle(data.suggested_title)
+          }
+        } else {
+          setTitle(data.suggested_title)
+        }
         setSummary(data.suggested_summary)
         if (data.recommended_severity) {
           setSeverity(data.recommended_severity)
@@ -153,12 +183,26 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
           clauses: data.statutory_applicability || [],
           reason: data.fallback_reason,
         })
+        setRefineNotice(data.fallback_mode ? "Refined via Banking Heuristic Engine" : `Refined with ${data.model_used || "AI"}`)
+        setTimeout(() => setRefineNotice(null), 3500)
         return
       }
       throw new Error(`HTTP ${response.status}`)
     } catch {
-      // Deterministic Client-Side Fallback if backend API is unreachable
-      const lower = sanitizedInput.toLowerCase()
+      clearTimeout(timeoutId)
+      // Deterministic Client-Side Fallback if backend API is unreachable or times out
+      // Strip previously added structured headers so repeated clicks do not accumulate duplicate blocks
+      const cleanInput = sanitizedInput
+        .replace(/Executive (?:Incident )?Overview:\s*/gi, "")
+        .replace(/Technical Threat Telemetry:\s*/gi, "")
+        .replace(/MITRE ATT&CK Classification:\s*/gi, "")
+        .replace(/Statutory Reporting Assessment:\s*/gi, "")
+        .replace(/Technique:\s*[^\n]+\n?/gi, "")
+        .replace(/Window:\s*[^\n]+\n?/gi, "")
+        .replace(/Applicable Directives:\s*[^\n]+\n?/gi, "")
+        .trim()
+
+      const lower = (cleanInput || sanitizedInput).toLowerCase()
       let draftSeverity = "high"
       let mitre = "T1059 - Command and Scripting Interpreter"
       let draftTitle = `[Security Anomaly] Suspicious activity detected on Core Network`
@@ -192,7 +236,7 @@ export const NewIncidentModal: FC<NewIncidentModalProps> = ({
 Automated security detection observed suspicious telemetry requiring expedited review.
 
 Technical Threat Telemetry:
-${sanitizedInput}
+${cleanInput || sanitizedInput}
 
 MITRE ATT&CK Classification:
 Technique: ${mitre}
@@ -201,7 +245,13 @@ Statutory Reporting Assessment:
 Window: ${draftSeverity === "critical" ? "6 Hours (Mandatory Initial Notice)" : "Statutory Verification"}
 Applicable Directives: ${statutory.join(", ")}`
 
-      setTitle(draftTitle)
+      if (isRefining) {
+        if (!title || title.trim().length < 5) {
+          setTitle(draftTitle)
+        }
+      } else {
+        setTitle(draftTitle)
+      }
       setSummary(draftSummary)
       setSeverity(draftSeverity)
       setAiDraftMeta({
@@ -211,8 +261,11 @@ Applicable Directives: ${statutory.join(", ")}`
         clauses: statutory,
         reason: "Offline fallback mode engaged.",
       })
+      setRefineNotice("Refined via Client-Side Heuristics")
+      setTimeout(() => setRefineNotice(null), 3500)
     } finally {
       setIsGeneratingDraft(false)
+      setIsRefiningSummary(false)
     }
   }
 
@@ -531,13 +584,28 @@ Applicable Directives: ${statutory.join(", ")}`
                   <button
                     type="button"
                     onClick={() => handleGenerateAIDraft(summary)}
-                    disabled={isGeneratingDraft}
-                    className="text-[10px] text-primary hover:underline flex items-center gap-1 font-medium"
+                    disabled={isGeneratingDraft || isRefiningSummary}
+                    className="text-[10px] text-primary hover:text-primary-hover flex items-center gap-1 font-medium transition-colors disabled:opacity-50"
                     title="Re-structure summary using local AI synthesis"
                   >
-                    <Wand2 className="w-3 h-3" />
-                    <span>AI Refine</span>
+                    {isRefiningSummary ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+                        <span>Refining...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3" />
+                        <span>AI Refine</span>
+                      </>
+                    )}
                   </button>
+                )}
+                {refineNotice && (
+                  <span className="text-[10px] text-status-ok flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>{refineNotice}</span>
+                  </span>
                 )}
                 <span className="text-[10px] text-muted flex items-center gap-1">
                   <Lock className="w-3 h-3 text-status-ok" />

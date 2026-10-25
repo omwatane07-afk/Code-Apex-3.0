@@ -1609,6 +1609,7 @@ function AppContent() {
               setActiveTab("detail")
             }}
             initialData={newIncidentInitialData}
+            csrfToken={csrfToken}
           />
         )}
 
